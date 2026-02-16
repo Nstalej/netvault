@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  netvault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: netvault
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_PORT:-8080}:8080"
+      - "${API_PORT:-8443}:8443"
+    volumes:
+      - ./config:/app/config
+      - netvault-data:/app/data
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - NETVAULT_ENV=production
+      - TZ=${TZ:-UTC}
+    networks:
+      - netvault-net
+
+volumes:
+  netvault-data:
+    driver: local
+
+networks:
+  netvault-net:
+    driver: bridge

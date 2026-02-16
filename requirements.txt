@@ -1,0 +1,36 @@
+# ============================================
+# NetVault - Python Dependencies
+# ============================================
+
+# Core Framework
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+
+# Configuration
+python-dotenv==1.0.*
+pyyaml==6.0.*
+pydantic==2.10.*
+pydantic-settings==2.7.*
+
+# Security
+cryptography==44.*
+python-jose[cryptography]==3.3.*
+
+# Templates & Frontend
+jinja2==3.1.*
+
+# HTTP Client
+httpx==0.28.*
+
+# Database
+aiosqlite==0.20.*
+
+# Scheduling
+apscheduler==3.10.*
+
+# ─── Connectors (install as needed) ───
+# pysnmp-lextudio==6.*    # SNMP connector
+# paramiko==3.5.*         # SSH connector
+
+# ─── MCP (Phase 4) ───
+# mcp==1.*

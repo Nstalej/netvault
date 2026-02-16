@@ -1,0 +1,49 @@
+# ============================================
+# NetVault - Main Configuration
+# ============================================
+
+app:
+  name: "NetVault"
+  version: "0.1.0"
+  description: "Network Monitor & Auditor"
+
+server:
+  dashboard:
+    host: "0.0.0.0"
+    port: 8080
+  api:
+    host: "0.0.0.0"
+    port: 8443
+
+# Auto-discovery settings
+network:
+  auto_detect_ip: true
+  scan_on_startup: false
+
+# Modules enabled
+modules:
+  dashboard: true
+  api: true
+  mcp_server: false # Enable in Phase 4
+  scheduler: true
+  alerts: false # Enable when connectors are ready
+
+# Agent configuration
+agents:
+  auth_required: true
+  heartbeat_interval_seconds: 30
+  timeout_seconds: 120
+
+# Audit settings
+audit:
+  default_interval_minutes: 60
+  retention_days: 90
+  max_concurrent_audits: 5
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+  file: "/app/logs/netvault.log"
+  max_size_mb: 50
+  backup_count: 5

@@ -205,3 +205,21 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# --- Netvault runtime / local artifacts ---
+logs/*
+!logs/.gitkeep
+
+# Local DB files (por si no se llama db.sqlite3)
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# Local secrets fuera de .env (si lo llegas a usar)
+config/credentials.yml
+config/credentials.yaml
+
+# Windows / editor junk
+Thumbs.db
+.DS_Store
