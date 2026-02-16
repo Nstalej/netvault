@@ -18,7 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     iputils-ping \
     net-tools \
     snmp \
-    snmp-mibs-downloader \
     openssh-client \
     traceroute \
     dnsutils \
