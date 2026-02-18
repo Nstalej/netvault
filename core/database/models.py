@@ -149,3 +149,9 @@ CREATE TABLE IF NOT EXISTS credential_store (
 INITIAL_SQL = """
 INSERT OR IGNORE INTO sys_config (key, value) VALUES ('db_version', '1');
 """
+# Backward-compatible names expected by scripts (verify_phase2.py)
+DeviceCreate = DeviceModel
+Device = DeviceModel
+
+Credential = CredentialStoreModel
+CredentialCreate = CredentialStoreModel
