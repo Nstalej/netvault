@@ -2,46 +2,26 @@
 NetVault - Network Monitor & Auditor
 Main Entry Point
 """
-import asyncio
 import logging
+import asyncio
 import os
 import sys
 from pathlib import Path
 
-import yaml
 import uvicorn
+from core.config import Settings, get_config
+from core.engine.logger import setup_logging, get_logger, log_system_info
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
-logger = logging.getLogger("netvault")
-
-
-def load_config() -> dict:
-    """Load configuration from settings.yml"""
-    # Try production path first, then development path
-    paths = [
-        Path("/app/config/settings.yml"),
-        Path("config/settings.yml"),
-    ]
-    
-    for config_path in paths:
-        if config_path.exists():
-            with open(config_path, "r") as f:
-                config = yaml.safe_load(f)
-            logger.info(f"Config loaded from: {config_path}")
-            return config
-    
-    logger.error("No configuration file found!")
-    sys.exit(1)
+# Initial temporary logger for startup errors before config is fully loaded
+logging.basicConfig(level=logging.INFO)
+logger = get_logger("netvault")
 
 
-def print_banner(config: dict, host: str, port: int):
+def print_banner(config: Settings, host: str, port: int):
     """Print startup banner"""
-    name = config["app"]["name"]
-    version = config["app"]["version"]
-    desc = config["app"].get("description", "")
+    name = config.app.name
+    version = config.app.version
+    desc = config.app.description
     
     banner = f"""
 ╔══════════════════════════════════════════════════╗
@@ -66,10 +46,15 @@ def print_banner(config: dict, host: str, port: int):
 
 def main():
     """Main entry point"""
-    config = load_config()
+    from core.config import get_config
+    config = get_config()
     
-    dashboard_host = config["server"]["dashboard"]["host"]
-    dashboard_port = config["server"]["dashboard"]["port"]
+    # Initialize structured logging
+    setup_logging(config)
+    log_system_info(config)
+    
+    dashboard_host = config.server.dashboard_host
+    dashboard_port = config.server.dashboard_port
     
     print_banner(config, dashboard_host, dashboard_port)
     

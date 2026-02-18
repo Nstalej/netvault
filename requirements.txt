@@ -28,6 +28,10 @@ aiosqlite==0.20.*
 # Scheduling
 apscheduler==3.10.*
 
+# Testing
+pytest==8.*
+pytest-asyncio==0.24.*
+
 # ─── Connectors (install as needed) ───
 # pysnmp-lextudio==6.*    # SNMP connector
 # paramiko==3.5.*         # SSH connector
