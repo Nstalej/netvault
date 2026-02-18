@@ -11,28 +11,27 @@ from core.engine.device_manager import DeviceManager
 
 async def verify():
     print("--- Phase 2 Verification ---")
-    
-    # 1. Test Vault
+
+    db_path = "test_netvault.db"
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+    db = DatabaseManager(db_path)
+    await db.connect()
+
+    # 1. Test Vault (requires db instance)
     print("\n[V] Testing CredentialVault...")
-    vault = CredentialVault("test-master-key-123")
+    vault = CredentialVault(db, master_key="test-master-key-123")
     secret = "NetVaultPassword2026!"
     encrypted = vault.encrypt(secret)
     decrypted = vault.decrypt(encrypted)
     assert secret == decrypted
     print("  - Encryption/Decryption: OK")
-    
-    # 2. Test Database & DeviceManager
+
+    # 2. Test DeviceManager
     print("\n[DB] Testing DatabaseManager & DeviceManager...")
-    db_path = "test_netvault.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
-        
-    db = DatabaseManager(db_path)
-    await db.connect()
-    await db.initialize_schema(SCHEMA_SQL)
-    
     manager = DeviceManager(db, vault)
-    
+
     # 3. Add a device
     print("\n[DEV] Adding test device...")
     device_in = DeviceCreate(
@@ -43,19 +42,19 @@ async def verify():
     )
     dev_id = await manager.add_device(device_in, password="router_password")
     print(f"  - Device added with ID: {dev_id}")
-    
+
     # 4. Verify device insertion
     devices = await manager.get_all_devices()
     assert len(devices) == 1
     assert devices[0]["name"] == "MikroTik-GW"
     print("  - Device retrieval: OK")
-    
+
     # 5. Verify credential storage
     cred_id = devices[0]["credential_id"]
     cred = await manager.get_credential(cred_id)
     assert cred["password"] == "router_password"
     print("  - Credential storage & decryption: OK")
-    
+
     await db.disconnect()
     os.remove(db_path)
     print("\n--- Verification Successful! ---")

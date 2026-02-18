@@ -67,6 +67,32 @@ class CredentialStoreModel(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+# ─── DeviceManager Models ───
+
+class DeviceCreate(BaseModel):
+    name: str
+    ip_address: str
+    type: str
+    description: Optional[str] = None
+    credential_id: Optional[int] = None
+    is_active: bool = True
+
+class Device(DeviceCreate):
+    id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+class CredentialCreate(BaseModel):
+    name: str
+    username: str = "admin"
+    password: str
+
+class Credential(BaseModel):
+    id: Optional[int] = None
+    name: str
+    username: str
+    encrypted_password: str
+    created_at: Optional[datetime] = None
+
 # ─── SQL Schema ───
 
 SCHEMA_SQL = """
@@ -79,14 +105,19 @@ CREATE TABLE IF NOT EXISTS devices (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
-    ip TEXT NOT NULL,
+    ip TEXT,
+    ip_address TEXT,
     port INTEGER DEFAULT 161,
-    connector_type TEXT NOT NULL,
+    connector_type TEXT,
     config_json TEXT DEFAULT '{}',
     status TEXT DEFAULT 'unknown',
+    description TEXT,
+    credential_id INTEGER,
+    is_active INTEGER DEFAULT 1,
     last_seen TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (credential_id) REFERENCES credentials (id)
 );
 
 CREATE TABLE IF NOT EXISTS agents (
@@ -142,6 +173,14 @@ CREATE TABLE IF NOT EXISTS credential_store (
     encrypted_data TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS credentials (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    username TEXT NOT NULL DEFAULT 'admin',
+    encrypted_password TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 """
 

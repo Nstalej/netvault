@@ -61,6 +61,14 @@ class CredentialVault:
         decrypted_bytes = self._get_fernet().decrypt(encrypted_str.encode())
         return json.loads(decrypted_bytes.decode())
 
+    def encrypt(self, plaintext: str) -> str:
+        """Encrypt a plaintext string and return ciphertext string"""
+        return self._get_fernet().encrypt(plaintext.encode()).decode()
+
+    def decrypt(self, ciphertext: str) -> str:
+        """Decrypt a ciphertext string and return plaintext string"""
+        return self._get_fernet().decrypt(ciphertext.encode()).decode()
+
     async def store_credential(self, name: str, credential_type: str, data: dict) -> int:
         """Encrypt and store a new credential in the database"""
         encrypted_data = self._encrypt(data)
@@ -102,7 +110,7 @@ class CredentialVault:
     async def delete_credential(self, name: str):
         """Remove a credential from the vault"""
         await self.db.execute("DELETE FROM credential_store WHERE name = ?", (name,))
-        logger.inform(f"Credential '{name}' deleted")
+        logger.info(f"Credential '{name}' deleted")
 
     async def list_credentials(self) -> List[Dict[str, Any]]:
         """List all stored credentials (metadata only)"""
