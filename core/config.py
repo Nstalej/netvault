@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List
 from functools import lru_cache
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, model_validator, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Load environment variables from .env if present
@@ -36,7 +36,7 @@ class DatabaseConfig(BaseModel):
 
 class SecurityConfig(BaseModel):
     secret_key: str = Field(default="insecure-default-secret-key", alias="SECRET_KEY")
-    credentials_master_key: str = Field(..., alias="MASTER_KEY")
+    credentials_master_key: str = Field(..., alias="CREDENTIALS_MASTER_KEY")
     agent_auth_token: str = Field(..., alias="AGENT_AUTH_TOKEN")
 
 class LoggingConfig(BaseModel):
@@ -58,18 +58,33 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_nested_delimiter="__",
-        extra="ignore"
+        extra="ignore",
+        populate_by_name=True,
     )
 
     app: AppConfig = AppConfig()
     server: ServerConfig = ServerConfig()
     database: DatabaseConfig = DatabaseConfig()
-    security: SecurityConfig
+    security: Optional[SecurityConfig] = None
     logging: LoggingConfig = LoggingConfig()
     modules: ModulesConfig = ModulesConfig()
-    
+
+    # Flat env-var fields used to build SecurityConfig
+    secret_key: str = Field(default="insecure-default-secret-key", alias="SECRET_KEY")
+    credentials_master_key: str = Field(..., alias="CREDENTIALS_MASTER_KEY")
+    agent_auth_token: str = Field(..., alias="AGENT_AUTH_TOKEN")
+
     # Raw device inventory
     inventory: List[Dict[str, Any]] = []
+
+    @model_validator(mode="after")
+    def build_security(self) -> "Settings":
+        self.security = SecurityConfig(
+            SECRET_KEY=self.secret_key,
+            CREDENTIALS_MASTER_KEY=self.credentials_master_key,
+            AGENT_AUTH_TOKEN=self.agent_auth_token,
+        )
+        return self
 
 def find_config_file(filename: str) -> Optional[Path]:
     """Find a configuration file in common locations"""
