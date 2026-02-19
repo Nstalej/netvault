@@ -47,3 +47,8 @@ logging:
   file: "/app/logs/netvault.log"
   max_size_mb: 50
   backup_count: 5
+
+security:
+  secret_key: ${SECRET_KEY}
+  credentials_master_key: ${CREDENTIALS_MASTER_KEY}
+  agent_auth_token: ${AGENT_AUTH_TOKEN}
