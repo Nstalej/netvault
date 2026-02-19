@@ -36,7 +36,7 @@ class DatabaseConfig(BaseModel):
 
 class SecurityConfig(BaseModel):
     secret_key: str = Field(default="insecure-default-secret-key", alias="SECRET_KEY")
-    credentials_master_key: str = Field(..., alias="MASTER_KEY")
+    credentials_master_key: str = Field(..., alias="CREDENTIALS_MASTER_KEY")
     agent_auth_token: str = Field(..., alias="AGENT_AUTH_TOKEN")
 
 class LoggingConfig(BaseModel):
