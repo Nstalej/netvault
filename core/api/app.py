@@ -13,9 +13,12 @@ from core.config import Settings
 from core.database.db import DatabaseManager
 from core.engine.credential_vault import CredentialVault
 from core.engine.device_manager import DeviceManager
-from core.api.routes import devices, agents, audit, health, credentials, dashboard
+from core.engine.audit_engine import AuditEngine
+from core.engine.scheduler import get_scheduler
+from core.api.routes import devices, agents, audit, health, credentials, dashboard, network
 
 logger = logging.getLogger("netvault.api")
+
 
 def get_local_ip() -> str:
     """Auto-detect the container's IP address"""
@@ -46,11 +49,22 @@ async def lifespan(app: FastAPI):
     device_manager = DeviceManager(db, vault)
     app.state.device_manager = device_manager
     
+    # Initialize Audit Engine
+    audit_engine = AuditEngine(db, device_manager)
+    app.state.audit_engine = audit_engine
+
+    # Initialize and Start Scheduler
+    scheduler = get_scheduler()
+    await scheduler.start()
+    app.state.scheduler = scheduler
+    
     logger.info("Core components initialized")
     
     yield
     
     # Shutdown
+    if hasattr(app.state, 'scheduler'):
+        await app.state.scheduler.stop()
     await db.disconnect()
     logger.info("Application shutdown complete")
 
@@ -80,5 +94,6 @@ def create_app(config: Settings) -> FastAPI:
     app.include_router(agents.router)
     app.include_router(audit.router)
     app.include_router(credentials.router)
+    app.include_router(network.router)
     
     return app

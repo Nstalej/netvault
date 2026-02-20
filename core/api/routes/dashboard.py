@@ -199,10 +199,41 @@ async def get_dashboard(request: Request):
             font-weight: 600;
         }}
         
-        .status-up {{ background: rgba(74, 222, 128, 0.1); color: var(--success); }}
-        .status-down {{ background: rgba(248, 113, 113, 0.1); color: var(--danger); }}
+        .status-up, .status-online {{ background: rgba(74, 222, 128, 0.1); color: var(--success); }}
+        .status-down, .status-offline {{ background: rgba(248, 113, 113, 0.1); color: var(--danger); }}
+        .status-warning {{ background: rgba(251, 191, 36, 0.1); color: var(--warning); }}
         .status-unknown {{ background: rgba(148, 163, 184, 0.1); color: var(--text-muted); }}
-        
+
+        .search-box {{
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }}
+
+        .search-box input {{
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            color: var(--text-primary);
+            outline: none;
+        }}
+
+        .search-box input:focus {{ border-color: var(--accent); }}
+
+        .search-results {{
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(56, 189, 248, 0.05);
+            border-radius: 8px;
+            display: none;
+        }}
+
         .btn {{
             display: inline-flex;
             align-items: center;
@@ -257,6 +288,19 @@ async def get_dashboard(request: Request):
             </div>
         </header>
         
+        <div class="search-box">
+            <input type="text" id="global-search" placeholder="Search by MAC (XX:XX:XX...) or IP Address (192.168...)">
+            <button class="btn btn-primary" style="width: auto;" onclick="performSearch()">Search Network</button>
+        </div>
+        
+        <div id="search-results-panel" class="search-results">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                <h4 style="color:var(--accent);">Search Results</h4>
+                <button onclick="document.getElementById('search-results-panel').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer;">Close</button>
+            </div>
+            <div id="search-results-content"></div>
+        </div>
+        
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-label">Network Devices</div>
@@ -264,9 +308,9 @@ async def get_dashboard(request: Request):
                 <div class="stat-sub" id="ip-display">IP: {ip}:{port}</div>
             </div>
             <div class="stat-card">
-                <div class="stat-label">Remote Agents</div>
-                <div class="stat-value" id="count-agents">0</div>
-                <div class="stat-sub" id="agent-status">Awaiting data...</div>
+                <div class="stat-label">Audit Summary</div>
+                <div class="stat-value" id="audit-summary-val" style="font-size: 1.2rem; padding-top: 0.5rem;">Awaiting scan...</div>
+                <div class="stat-sub" id="last-audit-time">No audits completed today</div>
             </div>
             <div class="stat-card">
                 <div class="stat-label">Stored Credentials</div>
@@ -289,10 +333,11 @@ async def get_dashboard(request: Request):
                                 <th>Type</th>
                                 <th>IP Address</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="devices-table">
-                            <tr><td colspan="4" style="text-align:center; padding: 2rem;">Loading devices...</td></tr>
+                            <tr><td colspan="5" style="text-align:center; padding: 2rem;">Loading devices...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -305,9 +350,9 @@ async def get_dashboard(request: Request):
                         <thead>
                             <tr>
                                 <th>Timestamp</th>
-                                <th>Device</th>
-                                <th>Action</th>
-                                <th>Result</th>
+                                <th>Target</th>
+                                <th>Type</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="audits-body">
@@ -320,7 +365,8 @@ async def get_dashboard(request: Request):
             <div class="sidebar">
                 <div class="panel">
                     <div class="panel-title" style="margin-bottom: 1.2rem;">Quick Actions</div>
-                    <button class="btn btn-primary" id="btn-audit" onclick="runAudit()">Run Global Audit</button>
+                    <button class="btn btn-primary" id="btn-audit" onclick="runAudit()">Run Global Network Audit</button>
+                    <button class="btn btn-outline" id="btn-topology" onclick="window.open('/api/network/topology', '_blank')">View Topology Data</button>
                     <button class="btn btn-outline" id="btn-test" onclick="testDevices()">Test All Connectivity</button>
                 </div>
                 
@@ -352,6 +398,38 @@ async def get_dashboard(request: Request):
             }}
         }}
 
+        async function performSearch() {{
+            const query = document.getElementById('global-search').value.trim();
+            if (!query) return;
+            
+            const panel = document.getElementById('search-results-panel');
+            const content = document.getElementById('search-results-content');
+            panel.style.display = 'block';
+            content.innerHTML = '<p style="color:var(--text-muted);">Searching...</p>';
+            
+            let url = '/api/network/search?';
+            if (query.includes(':') || query.includes('-')) url += `mac=${{encodeURIComponent(query)}}`;
+            else url += `ip=${{encodeURIComponent(query)}}`;
+            
+            const results = await fetchData(url);
+            if (!results || results.length === 0) {{
+                content.innerHTML = '<p style="color:var(--warning);">No results found.</p>';
+            }} else {{
+                content.innerHTML = results.map(r => `
+                    <div style="padding:0.5rem; border-bottom:1px solid var(--border); margin-top:0.5rem;">
+                        <span style="color:var(--accent); font-weight:600;">${{r.device_name}}</span> 
+                        <span style="color:var(--text-muted); font-size:0.8rem;">[${{r.type.replace('_', ' ')}}]</span>
+                        <div style="font-size:0.9rem;">
+                            ${{r.port ? `Port: <code>${{r.port}}</code>` : ''}}
+                            ${{r.ip ? `IP: <code>${{r.ip}}</code>` : ''}}
+                            ${{r.mac ? `MAC: <code>${{r.mac}}</code>` : ''}}
+                            ${{r.vlan ? `VLAN: <code>${{r.vlan}}</code>` : ''}}
+                        </div>
+                    </div>
+                `).join('');
+            }}
+        }}
+
         async function refreshData() {{
             const app = document.getElementById('app-container');
             app.classList.add('loading');
@@ -362,32 +440,27 @@ async def get_dashboard(request: Request):
                 document.getElementById('count-devices').textContent = devices.length;
                 const table = document.getElementById('devices-table');
                 table.innerHTML = devices.length === 0 ? 
-                    '<tr><td colspan="4" style="text-align:center; padding: 2rem;">No devices found.</td></tr>' :
+                    '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No devices found.</td></tr>' :
                     devices.map(d => `
                         <tr>
                             <td><strong>${{d.name}}</strong></td>
-                            <td>${{d.type}}</td>
-                            <td><code>${{d.ip}}</code></td>
-                            <td><span class="status-pill status-${{d.status || 'unknown'}}">${{d.status || 'UNKNOWN'}}</span></td>
+                            <td>${{d.type || d.connector_type}}</td>
+                            <td><code>${{d.ip || d.ip_address}}</code></td>
+                            <td><span class="status-pill status-${{d.status || 'unknown'}}">${{(d.status || 'UNKNOWN').toUpperCase()}}</span></td>
+                            <td>
+                                <button class="btn-outline" style="width:auto; padding:0.2rem 0.5rem; font-size:0.75rem;" onclick="refreshDevice(${{d.id}})">Refresh</button>
+                            </td>
                         </tr>
                     `).join('');
             }}
 
-            // 2. Agents
-            const agents = await fetchData('/api/agents');
-            if (agents) {{
-                document.getElementById('count-agents').textContent = agents.length;
-                const onlineCount = agents.filter(a => a.status === 'online').length;
-                document.getElementById('agent-status').textContent = `${{onlineCount}} online of ${{agents.length}} registered`;
-            }}
-
-            // 3. Credentials
+            // 2. Credentials
             const creds = await fetchData('/api/credentials');
             if (creds) {{
                 document.getElementById('count-credentials').textContent = creds.length;
             }}
 
-            // 4. Audits
+            // 3. Audits
             const audits = await fetchData('/api/audit/results?limit=5');
             if (audits) {{
                 const body = document.getElementById('audits-body');
@@ -395,15 +468,23 @@ async def get_dashboard(request: Request):
                     '<tr><td colspan="4" style="text-align:center; padding: 2rem;">No audit logs available.</td></tr>' :
                     audits.map(a => `
                         <tr>
-                            <td style="font-size: 0.75rem; color: var(--text-muted);">${{new Date(a.timestamp).toLocaleString()}}</td>
-                            <td>${{a.device_id || 'Global'}}</td>
-                            <td>${{a.action}}</td>
-                            <td><span style="color: ${{a.result === 'success' ? 'var(--success)' : 'var(--danger)'}}">${{a.result}}</span></td>
+                            <td style="font-size: 0.75rem; color: var(--text-muted);">${{new Date(a.started_at || a.timestamp).toLocaleString()}}</td>
+                            <td>${{a.device_id === 0 ? 'Global Network' : 'Device ID: ' + a.device_id}}</td>
+                            <td>${{a.audit_type.replace('_', ' ')}}</td>
+                            <td><span class="status-pill status-${{a.status}}">${{a.status.toUpperCase()}}</span></td>
                         </tr>
                     `).join('');
+                
+                // Update Summary
+                if (audits.length > 0) {{
+                    const latest = audits[0];
+                    const summary = latest.status === 'success' ? '🛡️ Secure' : (latest.status === 'warning' ? '⚠️ Issues Found' : '❌ Critical Vulnerabilties');
+                    document.getElementById('audit-summary-val').innerHTML = `<span class="status-${{latest.status}}">${{summary}}</span>`;
+                    document.getElementById('last-audit-time').textContent = `Last run: ${{new Date(latest.completed_at).toLocaleTimeString()}}`;
+                }}
             }}
             
-            // 5. Uptime & Status
+            // 4. Uptime & Status
             const health = await fetchData('/health');
             if (health) {{
                 const sec = health.uptime_seconds || 0;
@@ -415,19 +496,24 @@ async def get_dashboard(request: Request):
             app.classList.remove('loading');
         }}
 
+        async function refreshDevice(id) {{
+            await fetchData(`/api/devices/${{id}}/refresh`, {{ method: 'POST' }});
+            refreshData();
+        }}
+
         async function runAudit() {{
             if (!confirm('Start global network audit?')) return;
             const btn = document.getElementById('btn-audit');
             btn.disabled = true;
             btn.textContent = 'Running...';
             
-            await fetchData('/api/audit/run', {{ method: 'POST' }});
+            await fetchData('/api/audit/run?device_id=0&audit_type=network', {{ method: 'POST' }});
             
             setTimeout(() => {{
                 btn.disabled = false;
-                btn.textContent = 'Run Global Audit';
+                btn.textContent = 'Run Global Network Audit';
                 refreshData();
-            }}, 2000);
+            }}, 3000);
         }}
 
         async function testDevices() {{

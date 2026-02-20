@@ -1,0 +1,57 @@
+"""
+Standard and Vendor-specific OIDs for NetVault SNMP Connector.
+"""
+
+# --- Standard MIBs ---
+
+# SNMPv2-MIB
+SYS_DESCR = "1.3.6.1.2.1.1.1.0"
+SYS_OBJECT_ID = "1.3.6.1.2.1.1.2.0"
+SYS_UPTIME = "1.3.6.1.2.1.1.3.0"
+SYS_CONTACT = "1.3.6.1.2.1.1.4.0"
+SYS_NAME = "1.3.6.1.2.1.1.5.0"
+SYS_LOCATION = "1.3.6.1.2.1.1.6.0"
+
+# IF-MIB (Interfaces)
+IF_INDEX = "1.3.6.1.2.1.2.2.1.1"
+IF_DESCR = "1.3.6.1.2.1.2.2.1.2"
+IF_TYPE = "1.3.6.1.2.1.2.2.1.3"
+IF_SPEED = "1.3.6.1.2.1.2.2.1.5"
+IF_PHYS_ADDRESS = "1.3.6.1.2.1.2.2.1.6"
+IF_ADMIN_STATUS = "1.3.6.1.2.1.2.2.1.7"
+IF_OPER_STATUS = "1.3.6.1.2.1.2.2.1.8"
+IF_IN_OCTETS = "1.3.6.1.2.1.2.2.1.10"
+IF_OUT_OCTETS = "1.3.6.1.2.1.2.2.1.16"
+IF_IN_ERRORS = "1.3.6.1.2.1.2.2.1.14"
+IF_OUT_ERRORS = "1.3.6.1.2.1.2.2.1.20"
+
+# IP-MIB (ARP and Routes)
+# ipNetToMediaTable (ARP)
+IP_NET_TO_MEDIA_IF_INDEX = "1.3.6.1.2.1.4.22.1.1"
+IP_NET_TO_MEDIA_PHYS_ADDRESS = "1.3.6.1.2.1.4.22.1.2"
+IP_NET_TO_MEDIA_NET_ADDRESS = "1.3.6.1.2.1.4.22.1.3"
+IP_NET_TO_MEDIA_TYPE = "1.3.6.1.2.1.4.22.1.4"
+
+# ipRouteTable
+IP_ROUTE_DEST = "1.3.6.1.2.1.4.21.1.1"
+IP_ROUTE_IF_INDEX = "1.3.6.1.2.1.4.21.1.2"
+IP_ROUTE_METRIC1 = "1.3.6.1.2.1.4.21.1.3"
+IP_ROUTE_NEXT_HOP = "1.3.6.1.2.1.4.21.1.7"
+IP_ROUTE_PROTO = "1.3.6.1.2.1.4.21.1.9"
+
+# BRIDGE-MIB (MAC Table)
+# dot1dTpFdbTable
+DOT1D_TP_FDB_ADDRESS = "1.3.6.1.2.1.17.4.3.1.1"
+DOT1D_TP_FDB_PORT = "1.3.6.1.2.1.17.4.3.1.2"
+DOT1D_TP_FDB_STATUS = "1.3.6.1.2.1.17.4.3.1.3"
+
+# --- Vendor Specific ---
+
+# MikroTik (Enterprise 14988)
+MIKROTIK_MODEL = "1.3.6.1.4.1.14988.1.1.4.1.0"
+MIKROTIK_SERIAL_NUMBER = "1.3.6.1.4.1.14988.1.1.7.3.0"
+MIKROTIK_ROUTEROS_VERSION = "1.3.6.1.4.1.14988.1.1.4.4.0"
+
+# Cisco (Enterprise 9)
+CISCO_IMAGE_STRING = "1.3.6.1.4.1.9.9.25.1.1.1.2.1.2" # FLASH image info
+CISCO_MODEL = "1.3.6.1.4.1.9.9.25.1.1.1.2.1.3"

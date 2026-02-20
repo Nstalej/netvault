@@ -2,6 +2,7 @@
 NetVault - Remote Agent management routes
 """
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Header, status
 
 from core.database.models import AgentModel
@@ -31,8 +32,7 @@ async def validate_agent_token(
 @router.get("/", response_model=List[Dict[str, Any]])
 async def list_agents(db: DatabaseManager = Depends(get_db)):
     """List all agents currently registered with the dashboard"""
-    # This might combine DB data with live heartbeat data from memory
-    return await crud.fetch_all_agents_with_status(db) # We should add this to crud or use a custom query
+    return await db.fetch_all("SELECT * FROM agents")
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register_agent(
@@ -85,8 +85,3 @@ async def download_agent_package(agent_type: str):
         "agent_type": agent_type,
         "download_url": f"https://github.com/ingenieroredes/netvault/releases/latest/agent_{agent_type}.zip"
     }
-
-# --- Helper logic for list_agents (could be in crud.py) ---
-async def fetch_all_agents_with_status(db: DatabaseManager):
-    return await db.fetch_all("SELECT * FROM agents")
-# Updating crud.py might be better, but let's keep it here for now if needed.

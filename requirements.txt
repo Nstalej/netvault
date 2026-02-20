@@ -33,8 +33,12 @@ pytest==8.*
 pytest-asyncio==0.24.*
 
 #Connectors
-pysnmp-lextudio==6.*    # SNMP connector
+#pysnmp-lextudio==6.*    # SNMP connector
+pysnmp>=6.0
 paramiko==3.5.*         # SSH connector
 
 # ─── MCP (Phase 4) ───
 # mcp==1.*
+
+# XML Parsing for Sophos Connector
+lxml>=4.9.4

@@ -46,6 +46,20 @@ class LoggingConfig(BaseModel):
     max_size_mb: int = 10
     backup_count: int = 5
 
+class PollingConfig(BaseModel):
+    interval_minutes: int = 5
+
+class AuditConfig(BaseModel):
+    default_interval_minutes: int = 60
+    scheduled_time: str = "02:00"
+    retention_days: int = 90
+    max_concurrent_audits: int = 5
+
+class AgentsConfig(BaseModel):
+    auth_required: bool = True
+    heartbeat_interval_seconds: int = 30
+    timeout_seconds: int = 120
+
 class ModulesConfig(BaseModel):
     dashboard: bool = True
     api: bool = True
@@ -68,6 +82,9 @@ class Settings(BaseSettings):
     security: Optional[SecurityConfig] = None
     logging: LoggingConfig = LoggingConfig()
     modules: ModulesConfig = ModulesConfig()
+    polling: PollingConfig = PollingConfig()
+    audit: AuditConfig = AuditConfig()
+    agents: AgentsConfig = AgentsConfig()
 
     # Flat env-var fields used to build SecurityConfig
     secret_key: str = Field(default="insecure-default-secret-key", alias="SECRET_KEY")

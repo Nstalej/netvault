@@ -8,26 +8,46 @@ from pydantic import BaseModel
 from core.database.models import AuditLogModel
 from core.database import crud
 from core.database.db import DatabaseManager
+from core.engine.audit_engine import AuditEngine
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
 def get_db(request: Request) -> DatabaseManager:
     return request.app.state.db
 
+def get_engine(request: Request) -> AuditEngine:
+    return request.app.state.audit_engine
+
 @router.post("/run", status_code=status.HTTP_202_ACCEPTED)
 async def run_audit(
     device_id: int, 
     audit_type: str, 
-    db: DatabaseManager = Depends(get_db)
+    engine: AuditEngine = Depends(get_engine)
 ):
-    """Trigger a manual audit run for a specific device"""
-    # In Phase 3, this will trigger the connector engine
-    return {
-        "status": "triggered",
-        "device_id": device_id,
-        "audit_type": audit_type,
-        "message": f"Audit {audit_type} initiated for device {device_id}"
-    }
+    """Trigger a manual audit run for a specific device or the network"""
+    if device_id == 0 or audit_type == "network":
+        # Global network audit
+        # We run this as a background task because it can be slow
+        import asyncio
+        asyncio.create_task(engine.run_network_audit())
+        return {
+            "status": "triggered",
+            "device_id": 0,
+            "audit_type": "network",
+            "message": "Global network audit initiated"
+        }
+    else:
+        # Single device audit
+        # Also run as background task for responsiveness
+        import asyncio
+        asyncio.create_task(engine.run_device_audit(device_id))
+        return {
+            "status": "triggered",
+            "device_id": device_id,
+            "audit_type": audit_type,
+            "message": f"Audit {audit_type} initiated for device {device_id}"
+        }
+
 
 @router.get("/results", response_model=List[Dict[str, Any]])
 async def list_audit_results(
