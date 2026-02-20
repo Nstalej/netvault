@@ -61,34 +61,13 @@ class CredentialVault:
         decrypted_bytes = self._get_fernet().decrypt(encrypted_str.encode())
         return json.loads(decrypted_bytes.decode())
 
-    # ---- Public API (string-based) ----
     def encrypt(self, plaintext: str) -> str:
-        """
-        Encrypt a plaintext string. Wrapper used by verify scripts and higher-level code.
-        Internally stores it as {"value": "..."} to reuse dict-based encryption.
-        """
-        return self._encrypt({"value": plaintext})
+        """Encrypt a plaintext string and return ciphertext string"""
+        return self._get_fernet().encrypt(plaintext.encode()).decode()
 
-    def decrypt(self, token: str) -> str:
-        """
-        Decrypt token back to plaintext string.
-        If payload is dict-like, it tries to extract 'value' (or the only value if single-key dict).
-        """
-        data = self._decrypt(token)
-        if isinstance(data, dict):
-            if "value" in data:
-                return data["value"]
-            if len(data) == 1:
-                return next(iter(data.values()))
-        # Fallback (shouldn't happen for string encryption)
-        return str(data)
-
-    # ---- Optional: explicit dict API (keeps intent clear) ----
-    def encrypt_dict(self, data: dict) -> str:
-        return self._encrypt(data)
-
-    def decrypt_dict(self, token: str) -> dict:
-        return self._decrypt(token)
+    def decrypt(self, ciphertext: str) -> str:
+        """Decrypt a ciphertext string and return plaintext string"""
+        return self._get_fernet().decrypt(ciphertext.encode()).decode()
 
     async def store_credential(self, name: str, credential_type: str, data: dict) -> int:
         """Encrypt and store a new credential in the database"""
@@ -131,7 +110,7 @@ class CredentialVault:
     async def delete_credential(self, name: str):
         """Remove a credential from the vault"""
         await self.db.execute("DELETE FROM credential_store WHERE name = ?", (name,))
-        logger.inform(f"Credential '{name}' deleted")
+        logger.info(f"Credential '{name}' deleted")
 
     async def list_credentials(self) -> List[Dict[str, Any]]:
         """List all stored credentials (metadata only)"""

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/verify_phase2.py:*)",
+      "Bash(python -m scripts.verify_phase2:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(where:*)",
+      "Bash(C:UsersingenieroredesAppDataLocalPythonbinpython.exe -m pip install aiosqlite cryptography pydantic)",
+      "Bash(cmd /c:*)",
+      "Bash(conda run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(timeout /t 5)",
+      "Bash(echo:*)",
+      "Bash(\"C:\\\\Users\\\\ingenieroredes\\\\.conda\\\\envs\\\\netvault\\\\python.exe\" -u -m core.main)"
+    ]
+  }
+}

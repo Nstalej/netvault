@@ -11,7 +11,6 @@ from fastapi.responses import HTMLResponse
 
 from core.config import Settings
 from core.database.db import DatabaseManager
-from core.database.models import SCHEMA_SQL
 from core.engine.credential_vault import CredentialVault
 from core.engine.device_manager import DeviceManager
 from core.api.routes import devices, agents, audit, health, credentials, dashboard
@@ -34,14 +33,13 @@ async def lifespan(app: FastAPI):
     """Lifecycle events for the application"""
     config: Settings = app.state.config
     
-    # Initialize Database
+    # Initialize Database (schema is auto-initialized inside connect())
     db = DatabaseManager(config.database.db_path)
     await db.connect()
-    await db.initialize_schema(SCHEMA_SQL)
     app.state.db = db
-    
+
     # Initialize Security
-    vault = CredentialVault(config.security.credentials_master_key)
+    vault = CredentialVault(db, master_key=config.security.credentials_master_key)
     app.state.vault = vault
     
     # Initialize Core Engine

@@ -3,17 +3,16 @@ NetVault - Database Connection Manager & Migrations
 """
 import aiosqlite
 import logging
+import os
 from pathlib import Path
-from typing import Optional, List, Any, Dict, Union
-
+from typing import Optional, List, Any, Dict
 from core.database.models import SCHEMA_SQL, INITIAL_SQL
 
 logger = logging.getLogger("netvault.db")
 
-
 class DatabaseManager:
     """Asynchronous SQLite connection manager with migration support"""
-
+    
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._connection: Optional[aiosqlite.Connection] = None
@@ -23,12 +22,12 @@ class DatabaseManager:
         db_dir = Path(self.db_path).parent
         if not db_dir.exists():
             db_dir.mkdir(parents=True, exist_ok=True)
-
+            
         if self._connection is None:
             self._connection = await aiosqlite.connect(self.db_path)
             self._connection.row_factory = aiosqlite.Row
             logger.info(f"Connected to database: {self.db_path}")
-
+            
             # Auto-initialize and migrate
             await self._initialize()
 
@@ -39,55 +38,17 @@ class DatabaseManager:
             self._connection = None
             logger.info("Database connection closed")
 
-    async def initialize_schema(self, schema_sql: Union[str, List[str]]) -> None:
-        """
-        Initialize schema manually (used by scripts/verify_phase2.py).
-        - Ensures DB path exists
-        - Opens connection if needed (without recursing)
-        - Runs schema + INITIAL_SQL + migration hook
-        """
-        db_dir = Path(self.db_path).parent
-        if not db_dir.exists():
-            db_dir.mkdir(parents=True, exist_ok=True)
-
-        if isinstance(schema_sql, (list, tuple)):
-            schema_sql = "\n".join(schema_sql)
-
-        # Open connection if needed (do NOT call connect() here to avoid recursion patterns)
-        if self._connection is None:
-            self._connection = await aiosqlite.connect(self.db_path)
-            self._connection.row_factory = aiosqlite.Row
-            logger.info(f"Connected to database (manual init): {self.db_path}")
-
-        # Apply schema + initial data
-        await self._connection.executescript(schema_sql)
-        try:
-            await self._connection.executescript(INITIAL_SQL)
-        except Exception as e:
-            logger.warning(f"INITIAL_SQL could not be applied (may be absent/optional): {e}")
-
-        await self._connection.commit()
-
-        # Migration hook (safe)
-        try:
-            version = await self.get_version()
-        except Exception as e:
-            logger.warning(f"Could not read db_version during initialize_schema: {e}")
-            version = 0
-
-        await self._migrate(version)
-
     async def _initialize(self):
         """Initialize schema and run migrations"""
         # Execute base schema
         await self._connection.executescript(SCHEMA_SQL)
         await self._connection.executescript(INITIAL_SQL)
         await self._connection.commit()
-
+        
         # Check version and run migrations if needed
         version = await self.get_version()
         logger.info(f"Database version: {version}")
-
+        
         # Simple migration logic (extendable in future phases)
         await self._migrate(version)
 
