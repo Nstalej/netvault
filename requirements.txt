@@ -38,7 +38,7 @@ pysnmp>=6.0
 paramiko==3.5.*         # SSH connector
 
 # ─── MCP (Phase 4) ───
-# mcp==1.*
+mcp==1.*
 
 # XML Parsing for Sophos Connector
 lxml>=4.9.4
