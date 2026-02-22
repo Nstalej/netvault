@@ -1,6 +1,7 @@
 """
 NetVault - FastAPI Application Factory
 """
+import os
 import socket
 import logging
 from datetime import datetime, timezone
@@ -8,6 +9,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from core.config import Settings
 from core.database.db import DatabaseManager
@@ -60,6 +63,12 @@ async def lifespan(app: FastAPI):
     
     logger.info("Core components initialized")
     
+    # Start MCP Server if enabled
+    if config.modules.mcp_server or config.mcp.enabled:
+        from core.mcp_server.server import start_mcp_server
+        app.state.mcp_server = await start_mcp_server(db, device_manager, audit_engine)
+        logger.info(f"MCP Server started on port {config.mcp.port}")
+    
     yield
     
     # Shutdown
@@ -87,6 +96,14 @@ def create_app(config: Settings) -> FastAPI:
     app.state.registered_agents = {}
     app.state.active_connectors = {}
     
+    # Static files and Templates
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    template_dir = os.path.join(base_dir, "dashboard", "templates")
+    static_dir = os.path.join(base_dir, "dashboard", "static")
+    
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    app.state.templates = Jinja2Templates(directory=template_dir)
+
     # ─── Include Routers ───
     app.include_router(dashboard.router)
     app.include_router(health.router)

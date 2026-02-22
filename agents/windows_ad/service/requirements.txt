@@ -1,0 +1,5 @@
+httpx
+ldap3
+pyyaml
+python-dotenv
+pywin32; platform_system == "Windows"

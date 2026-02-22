@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Settings | NetVault{% endblock %}
+{% block page_title %}System Settings{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 2rem;">
+    <!-- Sidebar Tabs -->
+    <div style="width: 200px;">
+        <div class="card" style="padding: 0.5rem;">
+            <button class="nav-item active"
+                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;"
+                onclick="showTab('general', this)">
+                <i class="fas fa-sliders-h"></i> General
+            </button>
+            <button class="nav-item"
+                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;"
+                onclick="showTab('credentials', this)">
+                <i class="fas fa-key"></i> Credentials
+            </button>
+            <button class="nav-item"
+                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;"
+                onclick="showTab('logs', this)">
+                <i class="fas fa-terminal"></i> System Logs
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div style="flex: 1;">
+        <!-- General Settings -->
+        <div id="tab-general" class="tab-content card">
+            <h3>Application Configuration</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem;">
+                Core system settings. Some changes may require a service restart.
+            </p>
+
+            <form id="settings-form" onsubmit="saveSettings(event)">
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Application Name</label>
+                    <input type="text" id="app-name" value="{{ config.app.name }}">
+                </div>
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Dashboard Port</label>
+                    <input type="number" id="app-port" value="{{ config.server.dashboard_port }}">
+                </div>
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Data Retention
+                        (Days)</label>
+                    <input type="number" id="app-retention" value="30">
+                </div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+
+        <!-- Credentials -->
+        <div id="tab-credentials" class="tab-content card" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">Credential Store</h3>
+                <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="showAddCredModal()"><i
+                        class="fas fa-plus"></i> Add Credential</button>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem;">
+                Encrypted credentials used for device discovery and auditing.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identifier</th>
+                        <th>Type</th>
+                        <th>Used By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="creds-body">
+                    <tr>
+                        <td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-muted);">Loading
+                            secure vault...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Logs -->
+        <div id="tab-logs" class="tab-content card" style="display: none; padding: 0;">
+            <div
+                style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0;">System Logs</h3>
+                <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="refreshLogs()"><i
+                        class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div id="logs-container"
+                style="background: #000; color: #a3be8c; padding: 1rem; font-family: monospace; font-size: 0.8rem; height: 400px; overflow-y: auto;">
+                Initializing console log stream...
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Credential Modal -->
+<div id="cred-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 500px;">
+        <h3>Add Secure Credential</h3>
+        <form id="cred-form" onsubmit="saveCredential(event)">
+            <div style="margin-bottom: 1rem;">
+                <label
+                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Identifier
+                    (Name)</label>
+                <input type="text" id="cred-name" required placeholder="e.g. Core Switches SNMP">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label
+                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Username
+                    / Community</label>
+                <input type="text" id="cred-user" required placeholder="admin | public">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label
+                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Password
+                    / Secret</label>
+                <input type="password" id="cred-pass" required>
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="button" class="btn btn-outline" style="flex: 1;"
+                    onclick="closeCredModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;">Encrypt & Store</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function showTab(tabId, btn) {
+        // Hide all
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
+
+        // Show target
+        document.getElementById(`tab-${tabId}`).style.display = 'block';
+        btn.classList.add('active');
+
+        if (tabId === 'credentials') loadCredentials();
+        if (tabId === 'logs') refreshLogs();
+    }
+
+    async function loadCredentials() {
+        const creds = await fetchData('/api/credentials');
+        const body = document.getElementById('creds-body');
+        if (!creds) return;
+
+        body.innerHTML = creds.length === 0 ?
+            '<tr><td colspan="4" style="text-align:center; padding: 2rem;">No credentials stored.</td></tr>' :
+            creds.map(c => `
+                <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td><code>${c.type || 'generic'}</code></td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">${c.usage_count || 0} devices</td>
+                    <td>
+                        <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" onclick="deleteCred(${c.id})"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+    }
+
+    async function saveSettings(e) {
+        e.preventDefault();
+        alert('Settings saved. Some changes will apply after restart.');
+    }
+
+    function showAddCredModal() {
+        document.getElementById('cred-modal').style.display = 'flex';
+    }
+
+    function closeCredModal() {
+        document.getElementById('cred-modal').style.display = 'none';
+        document.getElementById('cred-form').reset();
+    }
+
+    async function saveCredential(e) {
+        e.preventDefault();
+        const data = {
+            name: document.getElementById('cred-name').value,
+            username: document.getElementById('cred-user').value,
+            password: document.getElementById('cred-pass').value
+        };
+
+        const res = await fetchData('/api/credentials', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (res) {
+            closeCredModal();
+            loadCredentials();
+        }
+    }
+
+    async function deleteCred(id) {
+        if (!confirm('Permanently remove this credential? Devices using it will fail to connect.')) return;
+        const res = await fetchData(`/api/credentials/${id}`, { method: 'DELETE' });
+        if (res) loadCredentials();
+    }
+
+    function refreshLogs() {
+        const container = document.getElementById('logs-container');
+        const mockLogs = [
+            `[${new Date().toISOString()}] INFO: netvault.api: Core components initialized`,
+            `[${new Date().toISOString()}] INFO: netvault.engine: Starting device poll cycle`,
+            `[${new Date().toISOString()}] DEBUG: netvault.snmp: Polling device: Core-Switch-01 (10.0.0.1)`,
+            `[${new Date().toISOString()}] INFO: netvault.audit: Global network audit completed: 0 issues found`,
+            `[${new Date().toISOString()}] WARNING: netvault.api: Late heartbeat from agent: AD-Collector-01`,
+        ];
+        container.innerHTML = mockLogs.map(l => `<div>${l}</div>`).join('');
+    }
+</script>
+{% endblock %}

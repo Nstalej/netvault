@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Audits | NetVault{% endblock %}
+{% block page_title %}Security Audits{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; gap: 1rem;">
+        <select id="audit-filter-type" onchange="refreshData()" style="width: auto;">
+            <option value="">All Audit Types</option>
+            <option value="network">Network Scan</option>
+            <option value="active_directory">Active Directory</option>
+            <option value="device_config">Device Config</option>
+        </select>
+        <select id="audit-filter-status" onchange="refreshData()" style="width: auto;">
+            <option value="">All Statuses</option>
+            <option value="success">Success</option>
+            <option value="warning">Warning</option>
+            <option value="fail">Critical</option>
+        </select>
+    </div>
+    <button class="btn btn-primary" onclick="runAudit()">
+        <i class="fas fa-play"></i> New Global Audit
+    </button>
+</div>
+
+<div class="card" style="padding: 0;">
+    <div style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Target</th>
+                    <th>Audit Type</th>
+                    <th>Findings</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="audit-results-body">
+                <tr>
+                    <td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">Loading audit
+                        history...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Audit Details Modal -->
+<div id="audit-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+            <div>
+                <h3 style="margin-bottom: 0.25rem;">Audit Report #<span id="report-id"></span></h3>
+                <p id="report-date" style="font-size: 0.85rem; color: var(--text-muted);"></p>
+            </div>
+            <button class="btn btn-outline" style="padding: 0.4rem;" onclick="closeAuditModal()"><i
+                    class="fas fa-times"></i></button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Status</div>
+                <div id="report-status" style="font-weight: 700;"></div>
+            </div>
+            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Type</div>
+                <div id="report-type" style="font-weight: 700;"></div>
+            </div>
+            <div style="padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Device</div>
+                <div id="report-target" style="font-weight: 700;"></div>
+            </div>
+        </div>
+
+        <h4>Check Results</h4>
+        <div id="report-details" style="margin-top: 1rem;">
+            <!-- Rendered results -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function refreshPageData() {
+        const type = document.getElementById('audit-filter-type').value;
+        const status = document.getElementById('audit-filter-status').value;
+
+        let url = '/api/audit/results?limit=50';
+        if (type) url += `&audit_type=${type}`;
+
+        const results = await fetchData(url);
+        const body = document.getElementById('audit-results-body');
+
+        if (!results) return;
+
+        // Manual filter for status if needed (API might not support it yet)
+        const filtered = status ? results.filter(r => r.status === status) : results;
+
+        body.innerHTML = filtered.length === 0 ?
+            '<tr><td colspan="6" style="text-align:center; padding: 2rem;">No audit records found.</td></tr>' :
+            filtered.map(r => {
+                const results = r.results || {};
+                const checkCount = results.checks_performed || 0;
+                const failCount = results.vulnerabilities_found || 0;
+
+                return `
+                    <tr>
+                        <td style="font-size: 0.85rem; color: var(--text-secondary);">${new Date(r.started_at).toLocaleString()}</td>
+                        <td><strong>${r.device_id === 0 ? 'Network Scan' : 'Device #' + r.device_id}</strong></td>
+                        <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${r.audit_type.replace('_', ' ').toUpperCase()}</span></td>
+                        <td style="font-size: 0.85rem;">${failCount} issues / ${checkCount} checks</td>
+                        <td>
+                            <span class="status-badge" style="padding: 0.2rem 0.5rem; background: ${r.status === 'success' ? 'rgba(74, 222, 128, 0.1)' : (r.status === 'warning' ? 'rgba(251, 191, 36, 0.1)' : 'rgba(248, 113, 113, 0.1)')}; color: ${r.status === 'success' ? 'var(--success)' : (r.status === 'warning' ? 'var(--warning)' : 'var(--danger)')}; border: 1px solid ${r.status === 'success' ? 'rgba(74, 222, 128, 0.2)' : (r.status === 'warning' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(248, 113, 113, 0.2)')};">
+                                ${r.status.toUpperCase()}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="viewAudit(${r.id})">View Report</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+    }
+
+    async function viewAudit(id) {
+        const results = await fetchData('/api/audit/results?limit=100'); // Find the specific one
+        const r = results.find(x => x.id === id);
+
+        if (r) {
+            document.getElementById('report-id').textContent = r.id;
+            document.getElementById('report-date').textContent = new Date(r.started_at).toLocaleString();
+            document.getElementById('report-status').textContent = r.status.toUpperCase();
+            document.getElementById('report-status').style.color = r.status === 'success' ? 'var(--success)' : (r.status === 'warning' ? 'var(--warning)' : 'var(--danger)');
+            document.getElementById('report-type').textContent = r.audit_type.replace('_', ' ').toUpperCase();
+            document.getElementById('report-target').textContent = r.device_id === 0 ? 'Global Network' : 'Device #' + r.device_id;
+
+            const detailContainer = document.getElementById('report-details');
+            const findings = r.results || {};
+
+            if (findings.checks && Object.keys(findings.checks).length > 0) {
+                detailContainer.innerHTML = Object.entries(findings.checks).map(([name, check]) => `
+                    <div style="padding: 1rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem; background: ${check.passed ? 'rgba(74, 222, 128, 0.02)' : 'rgba(248, 113, 113, 0.02)'};">
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600;">${name.replace(/_/g, ' ')}</span>
+                            <span style="color: ${check.passed ? 'var(--success)' : 'var(--danger)'}; font-weight: 700;">${check.passed ? 'PASSED' : 'FAILED'}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">${check.message || 'No description provided'}</div>
+                        ${check.details ? `<pre style="margin-top:0.5rem; font-size:0.75rem; background:var(--bg-secondary); padding:0.5rem; border-radius:4px; overflow-x:auto;">${JSON.stringify(check.details, null, 2)}</pre>` : ''}
+                    </div>
+                `).join('');
+            } else {
+                detailContainer.innerHTML = '<p style="color: var(--text-muted);">No detailed check results available.</p>';
+            }
+
+            document.getElementById('audit-modal').style.display = 'flex';
+        }
+    }
+
+    function closeAuditModal() {
+        document.getElementById('audit-modal').style.display = 'none';
+    }
+</script>
+{% endblock %}

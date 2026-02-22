@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | NetVault{% endblock %}
+{% block page_title %}Network Overview{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="card">
+        <div class="card-title">Network Devices</div>
+        <div class="card-value" id="count-devices" style="color: var(--accent);">0</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;" id="ip-display">
+            Server IP: {{ local_ip }}
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">Active Alerts</div>
+        <div class="card-value" id="count-alerts" style="color: var(--danger);">0</div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+            Last 24 hours
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">Audit Status</div>
+        <div class="card-value" id="audit-summary-val" style="font-size: 1.5rem; padding-top: 0.8rem;">
+            Awaiting...
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;" id="last-audit-time">
+            Run a scan to begin
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-title">System Uptime</div>
+        <div class="card-value" id="uptime-val" style="font-size: 1.5rem; padding-top: 0.8rem; color: var(--success);">
+            0h 0m
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">
+            Since last restart
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Main Inventory Section -->
+    <section class="card" style="padding: 0;">
+        <div
+            style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
+            <h3 style="margin: 0;">Recent Devices</h3>
+            <a href="/devices" class="btn btn-outline" style="font-size: 0.8rem;">View All</a>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Device Name</th>
+                        <th>Type</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="devices-table">
+                    <tr>
+                        <td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted);">Loading
+                            devices...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Side Alerts Section -->
+    <section class="card" style="padding: 0;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
+            <h3 style="margin: 0;">Recent Audits</h3>
+        </div>
+        <div id="audits-list" style="padding: 1rem;">
+            <p style="text-align:center; padding: 1rem; color: var(--text-muted);">No recent audits</p>
+        </div>
+        <div style="padding: 1.5rem; border-top: 1px solid var(--border);">
+            <button class="btn btn-primary" style="width: 100%;" onclick="runAudit()">
+                <i class="fas fa-search-plus"></i> Run Network Audit
+            </button>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function refreshPageData() {
+        // 1. Devices
+        const devices = await fetchData('/api/devices');
+        if (devices) {
+            document.getElementById('count-devices').textContent = devices.length;
+            const table = document.getElementById('devices-table');
+            const recent = devices.slice(0, 5); // Just show top 5 on dashboard
+
+            table.innerHTML = recent.length === 0 ?
+                '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No devices found.</td></tr>' :
+                recent.map(d => `
+                    <tr>
+                        <td><strong>${d.name}</strong></td>
+                        <td style="text-transform: capitalize;">${(d.type || d.connector_type).replace('_', ' ')}</td>
+                        <td><code>${d.ip || d.ip_address}</code></td>
+                        <td>
+                            <span class="status-badge ${d.status === 'up' ? 'online' : ''}" style="padding: 0.2rem 0.5rem; background: ${d.status === 'up' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${d.status === 'up' ? 'var(--success)' : 'var(--danger)'}; border: 1px solid ${d.status === 'up' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'};">
+                                ${d.status ? d.status.toUpperCase() : 'UNKNOWN'}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="location.href='/devices?id=${d.id}'">Details</button>
+                        </td>
+                    </tr>
+                `).join('');
+        }
+
+        // 2. Health & Uptime
+        const health = await fetchData('/health');
+        if (health) {
+            const sec = health.uptime_seconds || 0;
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            document.getElementById('uptime-val').textContent = `${h}h ${m}m`;
+        }
+
+        // 3. Audits
+        const audits = await fetchData('/api/audit/results?limit=5');
+        if (audits) {
+            const list = document.getElementById('audits-list');
+            list.innerHTML = audits.length === 0 ?
+                '<p style="text-align:center; padding: 1rem; color: var(--text-muted);">No recent audits</p>' :
+                audits.map(a => `
+                    <div style="padding: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.03); margin-bottom: 0.75rem; border-left: 3px solid ${a.status === 'success' ? 'var(--success)' : (a.status === 'warning' ? 'var(--warning)' : 'var(--danger)')};">
+                        <div style="display:flex; justify-content:space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">
+                            <span style="font-weight:600;">${a.audit_type.replace('_', ' ').toUpperCase()}</span>
+                            <span style="color: var(--text-muted);">${new Date(a.started_at).toLocaleTimeString()}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            Target: ${a.device_id === 0 ? 'Network' : 'Device ' + a.device_id}
+                        </div>
+                    </div>
+                `).join('');
+
+            if (audits.length > 0) {
+                const latest = audits[0];
+                const summary = latest.status === 'success' ? '🛡️ Secure' : (latest.status === 'warning' ? '⚠️ Warning' : '❌ Critical');
+                document.getElementById('audit-summary-val').textContent = summary;
+                document.getElementById('audit-summary-val').style.color = latest.status === 'success' ? 'var(--success)' : (latest.status === 'warning' ? 'var(--warning)' : 'var(--danger)');
+                document.getElementById('last-audit-time').textContent = `Last run: ${new Date(latest.completed_at).toLocaleTimeString()}`;
+            }
+        }
+
+        // 4. Alerts (Mock for now as we don't have a direct alerts API in the snippets)
+        // If we had /api/alerts we would fetch it. Let's assume 0 for now or fetch if possible.
+        // Based on the DB models there is an Alerts table.
+    }
+</script>
+{% endblock %}

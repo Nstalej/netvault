@@ -24,6 +24,11 @@ class AppConfig(BaseModel):
     description: str = "Network Monitor & Auditor"
     environment: str = Field(default="development", alias="ENVIRONMENT")
 
+class MCPConfig(BaseModel):
+    port: int = Field(default=8444, alias="MCP_PORT")
+    enabled: bool = Field(default=False, alias="MCP_ENABLED")
+    auth_token: str = Field(default="mcp-default-token", alias="MCP_AUTH_TOKEN")
+
 class ServerConfig(BaseModel):
     dashboard_host: str = Field(default="0.0.0.0", alias="DASHBOARD_HOST")
     dashboard_port: int = Field(default=8080, alias="DASHBOARD_PORT")
@@ -90,6 +95,11 @@ class Settings(BaseSettings):
     secret_key: str = Field(default="insecure-default-secret-key", alias="SECRET_KEY")
     credentials_master_key: str = Field(..., alias="CREDENTIALS_MASTER_KEY")
     agent_auth_token: str = Field(..., alias="AGENT_AUTH_TOKEN")
+    
+    # MCP server specific (pulled from env)
+    mcp_port: int = Field(default=8444, alias="MCP_PORT")
+    mcp_enabled: bool = Field(default=False, alias="MCP_ENABLED")
+    mcp_auth_token: str = Field(default="mcp-default-token", alias="MCP_AUTH_TOKEN")
 
     # Raw device inventory
     inventory: List[Dict[str, Any]] = []
@@ -101,7 +111,14 @@ class Settings(BaseSettings):
             CREDENTIALS_MASTER_KEY=self.credentials_master_key,
             AGENT_AUTH_TOKEN=self.agent_auth_token,
         )
+        self.mcp = MCPConfig(
+            port=self.mcp_port,
+            enabled=self.mcp_enabled,
+            auth_token=self.mcp_auth_token
+        )
         return self
+
+    mcp: MCPConfig = MCPConfig()
 
 def find_config_file(filename: str) -> Optional[Path]:
     """Find a configuration file in common locations"""

@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Agents | NetVault{% endblock %}
+{% block page_title %}Remote Agents{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+    <!-- Agents List -->
+    <div class="card" style="padding: 0;">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
+            <h3 style="margin: 0;">Registered Agents</h3>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Agent Name</th>
+                        <th>Host</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Last Heartbeat</th>
+                    </tr>
+                </thead>
+                <tbody id="agents-body">
+                    <tr>
+                        <td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted);">No agents
+                            registered</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Agent Downloads & Info -->
+    <div class="sidebar">
+        <div class="card">
+            <h3>Deploy New Agent</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Remote agents allow for Active Directory auditing and scanning from within isolated networks.
+            </p>
+
+            <div style="margin-bottom: 1rem;">
+                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">Windows AD Agent</h4>
+                <a href="/agents/download/windows" class="btn btn-outline" style="width: 100%; margin-bottom: 0.5rem;">
+                    <i class="fab fa-windows"></i> Download Installer (.ps1)
+                </a>
+                <p style="font-size: 0.75rem; color: var(--text-muted);">
+                    Requires PowerShell 5.1+ and Python 3.10+
+                </p>
+            </div>
+
+            <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Auth Token</h4>
+                <div
+                    style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem; border: 1px solid var(--border); overflow-x: auto;">
+                    {{ agent_auth_token }}
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
+                    Keep this token secret. Used by agents to authenticate.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function refreshPageData() {
+        const agents = await fetchData('/api/agents');
+        const body = document.getElementById('agents-body');
+
+        if (!agents) return;
+
+        body.innerHTML = agents.length === 0 ?
+            '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No agents registered.</td></tr>' :
+            agents.map(a => `
+                <tr>
+                    <td><strong>${a.name}</strong></td>
+                    <td><code>${a.hostname || a.ip_address}</code></td>
+                    <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${a.agent_type}</span></td>
+                    <td>
+                        <span class="status-badge ${a.status === 'online' ? 'online' : ''}" style="padding: 0.2rem 0.5rem; background: ${a.status === 'online' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${a.status === 'online' ? 'var(--success)' : 'var(--danger)'}; border: 1px solid ${a.status === 'online' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'};">
+                            ${a.status.toUpperCase()}
+                        </span>
+                    </td>
+                    <td style="font-size: 0.8rem; color: var(--text-muted);">${a.last_heartbeat ? new Date(a.last_heartbeat).toLocaleString() : 'Never'}</td>
+                </tr>
+            `).join('');
+    }
+</script>
+{% endblock %}
