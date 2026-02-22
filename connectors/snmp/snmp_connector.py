@@ -44,7 +44,7 @@ class SNMPConnector(BaseConnector):
         
         self.snmp_engine = SnmpEngine()
         self.auth_data = self._build_auth_data()
-        self.transport_target = UdpTransportTarget((self.device_ip, self.port), timeout=self.timeout, retries=self.retries)
+        self.transport_target = None # Initialized in connect()
         self.context_data = ContextData()
 
     def _build_auth_data(self) -> Union[CommunityData, UsmUserData]:
@@ -96,6 +96,13 @@ class SNMPConnector(BaseConnector):
     async def connect(self) -> bool:
         """For SNMP, connection is stateless, but we verify connectivity."""
         try:
+            if not self.transport_target:
+                self.transport_target = await UdpTransportTarget(
+                    (self.device_ip, self.port), 
+                    timeout=self.timeout, 
+                    retries=self.retries
+                ).create()
+                
             result = await self.test_connection()
             self._is_connected = result.success
             return result.success
@@ -111,7 +118,7 @@ class SNMPConnector(BaseConnector):
     async def _get(self, oid: str) -> Optional[Any]:
         """Perform an SNMP GET operation."""
         try:
-            errorIndication, errorStatus, errorIndex, varBinds = await getCmd(
+            errorIndication, errorStatus, errorIndex, varBinds = await get_cmd(
                 self.snmp_engine,
                 self.auth_data,
                 self.transport_target,
@@ -136,9 +143,9 @@ class SNMPConnector(BaseConnector):
         """Perform an SNMP WALK (via nextCmd or bulkCmd)."""
         results = []
         try:
-            # Prefer bulkCmd for better performance if possible (v2c/v3)
-            # v1 doesn't support bulkCmd, but we only support v2c/v3
-            iterator = bulkCmd(
+            # Prefer bulk_cmd for better performance if possible (v2c/v3)
+            # v1 doesn't support bulk_cmd, but we only support v2c/v3
+            iterator = bulk_cmd(
                 self.snmp_engine,
                 self.auth_data,
                 self.transport_target,

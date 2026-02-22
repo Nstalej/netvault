@@ -5,6 +5,7 @@ import os
 import socket
 import logging
 from datetime import datetime, timezone
+from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -23,8 +24,11 @@ from core.api.routes import devices, agents, audit, health, credentials, dashboa
 logger = logging.getLogger("netvault.api")
 
 
-def get_local_ip() -> str:
-    """Auto-detect the container's IP address"""
+def get_local_ip(config_ip: Optional[str] = None) -> str:
+    """Auto-detect the container's IP address or use config override"""
+    if config_ip and config_ip not in ["0.0.0.0", "::"]:
+        return config_ip
+        
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
@@ -39,43 +43,53 @@ async def lifespan(app: FastAPI):
     """Lifecycle events for the application"""
     config: Settings = app.state.config
     
-    # Initialize Database (schema is auto-initialized inside connect())
-    db = DatabaseManager(config.database.db_path)
-    await db.connect()
-    app.state.db = db
+    try:
+        # Initialize Database (schema is auto-initialized inside connect())
+        db = DatabaseManager(config.database.db_path)
+        await db.connect()
+        app.state.db = db
 
-    # Initialize Security
-    vault = CredentialVault(db, master_key=config.security.credentials_master_key)
-    app.state.vault = vault
-    
-    # Initialize Core Engine
-    device_manager = DeviceManager(db, vault)
-    app.state.device_manager = device_manager
-    
-    # Initialize Audit Engine
-    audit_engine = AuditEngine(db, device_manager)
-    app.state.audit_engine = audit_engine
+        # Initialize Security
+        vault = CredentialVault(db, master_key=config.security.credentials_master_key)
+        app.state.vault = vault
+        
+        # Initialize Core Engine
+        device_manager = DeviceManager(db, vault)
+        app.state.device_manager = device_manager
+        
+        # Initialize Audit Engine
+        audit_engine = AuditEngine(db, device_manager)
+        app.state.audit_engine = audit_engine
 
-    # Initialize and Start Scheduler
-    scheduler = get_scheduler()
-    await scheduler.start()
-    app.state.scheduler = scheduler
-    
-    logger.info("Core components initialized")
-    
-    # Start MCP Server if enabled
-    if config.modules.mcp_server or config.mcp.enabled:
-        from core.mcp_server.server import start_mcp_server
-        app.state.mcp_server = await start_mcp_server(db, device_manager, audit_engine)
-        logger.info(f"MCP Server started on port {config.mcp.port}")
-    
+        # Initialize and Start Scheduler
+        scheduler = get_scheduler()
+        await scheduler.start()
+        app.state.scheduler = scheduler
+        
+        logger.info("Core components initialized")
+        
+        # Start MCP Server if enabled
+        if config.modules.mcp_server or config.mcp.enabled:
+            from core.mcp_server.server import start_mcp_server
+            app.state.mcp_server = await start_mcp_server(db, device_manager, audit_engine)
+            logger.info(f"MCP Server started on port {config.mcp.port}")
+            
+    except Exception as e:
+        logger.critical(f"Critical failure during application startup: {e}", exc_info=True)
+        # Re-raise to ensure the application fails to start
+        raise
+
     yield
     
     # Shutdown
-    if hasattr(app.state, 'scheduler'):
-        await app.state.scheduler.stop()
-    await db.disconnect()
-    logger.info("Application shutdown complete")
+    try:
+        if hasattr(app.state, 'scheduler'):
+            await app.state.scheduler.stop()
+        if hasattr(app.state, 'db'):
+            await app.state.db.disconnect()
+        logger.info("Application shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}")
 
 def create_app(config: Settings) -> FastAPI:
     """Create and configure the FastAPI application"""
@@ -86,13 +100,14 @@ def create_app(config: Settings) -> FastAPI:
         description="Open source network monitoring & auditing platform",
         docs_url="/docs",
         redoc_url="/redoc",
-        lifespan=lifespan
+        lifespan=lifespan,
+        redirect_slashes=False
     )
     
     # Global state
     app.state.config = config
     app.state.start_time = datetime.now(timezone.utc)
-    app.state.local_ip = get_local_ip()
+    app.state.local_ip = get_local_ip(config.server.dashboard_host)
     app.state.registered_agents = {}
     app.state.active_connectors = {}
     

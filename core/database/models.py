@@ -15,7 +15,7 @@ class DeviceModel(BaseModel):
     ip: str
     port: int = 161
     connector_type: str  # snmp, ssh, rest_api
-    config_json: Dict[str, Any] = Field(default_factory=dict)
+    config_json: Dict[str, Any] = Field(default_factory=dict, validation_alias="config")
     status: str = "unknown"
     last_seen: Optional[datetime] = None
     created_at: Optional[datetime] = None

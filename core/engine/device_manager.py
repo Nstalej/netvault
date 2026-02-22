@@ -279,6 +279,10 @@ def get_device_manager(db: Optional[DatabaseManager] = None, vault: Optional[Cre
     global _DEVICE_MANAGER_INSTANCE
     if _DEVICE_MANAGER_INSTANCE is None:
         if db is None or vault is None:
-            raise ValueError("DatabaseManager and CredentialVault required for first initialization")
+            # Try to see if it was already initialized via __init__
+            try:
+                return DeviceManager.get_instance()
+            except RuntimeError:
+                raise ValueError("DatabaseManager and CredentialVault required for first initialization")
         _DEVICE_MANAGER_INSTANCE = DeviceManager(db, vault)
     return _DEVICE_MANAGER_INSTANCE
