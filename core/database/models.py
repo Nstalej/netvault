@@ -9,6 +9,7 @@ import json
 # ─── Pydantic Models ───
 
 class DeviceModel(BaseModel):
+    model_config = {"populate_by_name": True}
     id: Optional[int] = None
     name: str
     type: str  # e.g., router, switch, firewall

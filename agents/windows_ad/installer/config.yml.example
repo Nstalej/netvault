@@ -1,0 +1,15 @@
+netvault:
+  server_url: "http://192.168.1.10:8000"
+  agent_token: "your-agent-token-here"
+
+ad:
+  server: "dc01.domain.local"
+  user: "DOMAIN\\svc_netvault"
+  password: "change-me"
+  base_dn: "DC=domain,DC=local"
+  use_ssl: true
+
+agent:
+  heartbeat_interval: 30      # segundos
+  audit_interval: 86400        # segundos (24 horas)
+  log_level: "INFO"

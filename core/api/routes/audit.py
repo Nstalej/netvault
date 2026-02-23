@@ -49,6 +49,18 @@ async def run_audit(
         }
 
 
+@router.post("/results", status_code=status.HTTP_201_CREATED)
+async def submit_audit_results(
+    log_data: AuditLogModel,
+    db: DatabaseManager = Depends(get_db)
+):
+    """Submit audit results from an agent"""
+    try:
+        log_id = await crud.create_audit_log(db, log_data)
+        return {"log_id": log_id, "message": "Audit results submitted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.get("/results", response_model=List[Dict[str, Any]])
 async def list_audit_results(
     device_id: Optional[int] = None, 

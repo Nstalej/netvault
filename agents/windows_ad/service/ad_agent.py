@@ -12,10 +12,12 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-#from ad_collector import ADCollector
-#from ad_auditor import ADAuditor
-from agents.windows_ad.service.ad_collector import ADCollector
-from agents.windows_ad.service.ad_auditor import ADAuditor
+try:
+    from agents.windows_ad.service.ad_collector import ADCollector
+    from agents.windows_ad.service.ad_auditor import ADAuditor
+except ImportError:
+    from ad_collector import ADCollector
+    from ad_auditor import ADAuditor
 
 # Setup Logging
 logging.basicConfig(
@@ -114,13 +116,26 @@ class ADAgent:
         ad_data = self.collector.collect_all()
         audit_results = self.auditor.audit(ad_data)
         
-        # In a real implementation, we would POST this to /api/audit/logs or similar
-        # For now, we log the summary
-        logger.info(f"Audit completed. Vulnerabilities found: {audit_results['summary']['vulnerabilities']}")
+        url = f"{self.server_url}/api/audit/results"
+        payload = {
+            "device_id": 0,  # 0 or a specific AD controller device ID if known
+            "agent_id": self.agent_id,
+            "audit_type": "ad_audit",
+            "result_json": audit_results,
+            "status": "success",
+            "completed_at": datetime.utcnow().isoformat()
+        }
+        headers = {"X-Agent-Token": self.token}
         
-        # TODO: Implement POST to NetVault audit endpoint
-        # url = f"{self.server_url}/api/audit/submit"
-        # ...
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(url, json=payload, headers=headers, timeout=15)
+                if response.status_code in [200, 201]:
+                    logger.info("Audit results sent successfully")
+                else:
+                    logger.error(f"Failed to send audit results: {response.status_code} - {response.text}")
+            except Exception as e:
+                logger.error(f"Error sending audit results: {str(e)}")
 
     async def main_loop(self):
         """Main operational loop"""

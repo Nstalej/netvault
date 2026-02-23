@@ -57,12 +57,25 @@
             </div>
             <div style="margin-bottom: 1rem;">
                 <label
+                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Device
+                    Type</label>
+                <input type="text" id="dev-category" required placeholder="e.g. switch, router, mikrotik">
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label
                     style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Connector
                     Type</label>
                 <select id="dev-type">
                     <option value="snmp">SNMP (Switch/Router)</option>
-                    <option value="ssh">SSH (Linux/MikroTik)</option>
+                    <option value="ssh" selected>SSH (Linux/MikroTik)</option>
                     <option value="rest_api">REST API (Sophos/Cloud)</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label
+                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Credential</label>
+                <select id="dev-credential">
+                    <option value="">-- No Credential --</option>
                 </select>
             </div>
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
@@ -105,10 +118,21 @@
             `).join('');
     }
 
-    function showAddModal() {
+    async function showAddModal() {
         document.getElementById('modal-title').textContent = 'Register New Device';
         document.getElementById('edit-id').value = '';
         document.getElementById('device-form').reset();
+
+        // Load credentials for dropdown
+        const creds = await fetchData('/api/credentials');
+        const credSelect = document.getElementById('dev-credential');
+        credSelect.innerHTML = '<option value="">-- No Credential --</option>';
+        if (creds) {
+            creds.forEach(c => {
+                credSelect.innerHTML += `<option value="${c.name}">${c.name} (${c.type})</option>`;
+            });
+        }
+
         document.getElementById('add-modal').style.display = 'flex';
     }
 
@@ -119,10 +143,13 @@
     async function saveDevice(e) {
         e.preventDefault();
         const id = document.getElementById('edit-id').value;
+        const credName = document.getElementById('dev-credential').value;
         const data = {
             name: document.getElementById('dev-name').value,
-            ip_address: document.getElementById('dev-ip').value,
-            connector_type: document.getElementById('dev-type').value
+            ip: document.getElementById('dev-ip').value,
+            type: document.getElementById('dev-category').value,
+            connector_type: document.getElementById('dev-type').value,
+            config_json: credName ? { credential_name: credName } : {}
         };
 
         const method = id ? 'PUT' : 'POST';
@@ -147,7 +174,22 @@
             document.getElementById('edit-id').value = id;
             document.getElementById('dev-name').value = d.name;
             document.getElementById('dev-ip').value = d.ip_address || d.ip;
-            document.getElementById('dev-type').value = d.connector_type || d.type;
+            document.getElementById('dev-category').value = d.type || 'switch';
+            document.getElementById('dev-type').value = d.connector_type || 'ssh';
+
+            // Load credentials for dropdown
+            const creds = await fetchData('/api/credentials');
+            const credSelect = document.getElementById('dev-credential');
+            credSelect.innerHTML = '<option value="">-- No Credential --</option>';
+            if (creds) {
+                creds.forEach(c => {
+                    credSelect.innerHTML += `<option value="${c.name}">${c.name} (${c.type})</option>`;
+                });
+            }
+            if (d.config_json && d.config_json.credential_name) {
+                credSelect.value = d.config_json.credential_name;
+            }
+
             document.getElementById('add-modal').style.display = 'flex';
         }
     }

@@ -63,6 +63,13 @@ class ADAuditor:
             "findings": issues
         }
 
+    EPOCH_DIFF = 116444736000000000  # 100ns intervals between 1601-01-01 and 1970-01-01
+
+    def _filetime_to_datetime(self, filetime: int) -> datetime:
+        """Convert Windows FileTime to Python datetime"""
+        timestamp = (filetime - self.EPOCH_DIFF) / 10000000
+        return datetime.fromtimestamp(timestamp)
+
     def _check_stale_accounts(self, users: List[Dict[str, Any]]) -> Dict[str, Any]:
         stale_threshold = datetime.now() - timedelta(days=self.stale_days)
         issues = []
@@ -72,18 +79,19 @@ class ADAuditor:
             if not last_logon:
                 continue
                 
-            # lastLogonTimestamp is Windows FileTime (100ns intervals since 1601-01-01)
-            # Simplified comparison for this example
             try:
-                # Mock parsing/conversion logic - in real world would use win32 helpers or math
-                # Assuming ad_collector already converted or we use dummy logic here
-                pass
-            except Exception:
+                last_logon_dt = self._filetime_to_datetime(int(last_logon))
+                if last_logon_dt < stale_threshold:
+                    name = user.get('sAMAccountName', [''])[0]
+                    days_inactive = (datetime.now() - last_logon_dt).days
+                    issues.append(f"User '{name}' has been inactive for {days_inactive} days")
+            except Exception as e:
+                logger.error(f"Error parsing lastLogonTimestamp for user: {e}")
                 continue
 
         return {
             "name": "Stale Accounts",
-            "status": "pass",  # Placeholder until better timestamp parsing is added
+            "status": "warning" if issues else "pass",
             "findings": issues
         }
 

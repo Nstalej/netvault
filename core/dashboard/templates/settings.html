@@ -112,6 +112,15 @@
             </div>
             <div style="margin-bottom: 1rem;">
                 <label
+                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Type</label>
+                <select id="cred-type">
+                    <option value="ssh">SSH Password</option>
+                    <option value="snmp_v2">SNMP v2c</option>
+                    <option value="api_key">API Key</option>
+                </select>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label
                     style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Username
                     / Community</label>
                 <input type="text" id="cred-user" required placeholder="admin | public">
@@ -160,7 +169,7 @@
                     <td><code>${c.type || 'generic'}</code></td>
                     <td style="font-size: 0.8rem; color: var(--text-muted);">${c.usage_count || 0} devices</td>
                     <td>
-                        <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" onclick="deleteCred(${c.id})"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" onclick="deleteCred('${c.name}')"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -184,8 +193,11 @@
         e.preventDefault();
         const data = {
             name: document.getElementById('cred-name').value,
-            username: document.getElementById('cred-user').value,
-            password: document.getElementById('cred-pass').value
+            type: document.getElementById('cred-type').value,
+            data: {
+                username: document.getElementById('cred-user').value,
+                password: document.getElementById('cred-pass').value
+            }
         };
 
         const res = await fetchData('/api/credentials', {
@@ -200,9 +212,9 @@
         }
     }
 
-    async function deleteCred(id) {
+    async function deleteCred(name) {
         if (!confirm('Permanently remove this credential? Devices using it will fail to connect.')) return;
-        const res = await fetchData(`/api/credentials/${id}`, { method: 'DELETE' });
+        const res = await fetchData(`/api/credentials/${name}`, { method: 'DELETE' });
         if (res) loadCredentials();
     }
 

@@ -10,7 +10,7 @@ from core.database import crud
 from core.database.db import DatabaseManager
 from core.engine.device_manager import DeviceManager
 
-router = APIRouter(prefix="/api/devices", tags=["devices"])
+router = APIRouter(tags=["devices"])
 
 def get_db(request: Request) -> DatabaseManager:
     return request.app.state.db
@@ -18,12 +18,12 @@ def get_db(request: Request) -> DatabaseManager:
 def get_manager(request: Request) -> DeviceManager:
     return request.app.state.device_manager
 
-@router.get("/", response_model=List[Dict[str, Any]])
+@router.get("/api/devices", response_model=List[Dict[str, Any]])
 async def list_devices(db: DatabaseManager = Depends(get_db)):
     """List all registered network devices"""
     return await crud.list_devices(db)
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/api/devices", status_code=status.HTTP_201_CREATED)
 async def create_device(
     device: DeviceModel, 
     db: DatabaseManager = Depends(get_db)
@@ -35,7 +35,7 @@ async def create_device(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.get("/{device_id}", response_model=Dict[str, Any])
+@router.get("/api/devices/{device_id}", response_model=Dict[str, Any])
 async def get_device(
     device_id: int, 
     db: DatabaseManager = Depends(get_db)
@@ -46,7 +46,7 @@ async def get_device(
         raise HTTPException(status_code=404, detail="Device not found")
     return device
 
-@router.put("/{device_id}")
+@router.put("/api/devices/{device_id}")
 async def update_device(
     device_id: int, 
     data: Dict[str, Any], 
@@ -56,7 +56,7 @@ async def update_device(
     await crud.update_device(db, device_id, data)
     return {"message": "Device updated successfully"}
 
-@router.delete("/{device_id}")
+@router.delete("/api/devices/{device_id}")
 async def delete_device(
     device_id: int, 
     db: DatabaseManager = Depends(get_db)
@@ -65,7 +65,7 @@ async def delete_device(
     await crud.delete_device(db, device_id)
     return {"message": "Device removed"}
 
-@router.get("/{device_id}/status")
+@router.get("/api/devices/{device_id}/status")
 async def get_device_status(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
@@ -86,13 +86,24 @@ async def get_device_status(
         "features": ["snmp", "ssh"] # Placeholder for actual capability detection
     }
 
-@router.post("/{device_id}/test")
+@router.post("/api/devices/{device_id}/test")
 async def test_device_connectivity(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
 ):
     """Initiate a connectivity test for the device"""
     result = await manager.test_device(device_id)
+    
+    # Update status based on test result
+    status = "up" if result.success else "offline"
+    try:
+        await crud.update_device(manager.db, device_id, {"status": status})
+        if device_id in manager._devices:
+            manager._devices[device_id]["status"] = status
+    except Exception as e:
+        import logging
+        logging.getLogger("netvault.api").error(f"Failed to update status for device {device_id}: {e}")
+        
     return {
         "device_id": device_id,
         "success": result.success,
@@ -100,7 +111,7 @@ async def test_device_connectivity(
         "error": result.error_message
     }
 
-@router.get("/{device_id}/interfaces")
+@router.get("/api/devices/{device_id}/interfaces")
 async def get_device_interfaces(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
@@ -111,7 +122,7 @@ async def get_device_interfaces(
         raise HTTPException(status_code=404, detail="No poll data available for this device")
     return data.get("interfaces", [])
 
-@router.get("/{device_id}/arp")
+@router.get("/api/devices/{device_id}/arp")
 async def get_device_arp(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
@@ -122,7 +133,7 @@ async def get_device_arp(
         raise HTTPException(status_code=404, detail="No ARP data available. Try /refresh first.")
     return data.get("arp_table", [])
 
-@router.get("/{device_id}/mac-table")
+@router.get("/api/devices/{device_id}/mac-table")
 async def get_device_mac(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
@@ -133,7 +144,7 @@ async def get_device_mac(
         raise HTTPException(status_code=404, detail="No MAC data available. Try /refresh first.")
     return data.get("mac_table", [])
 
-@router.get("/{device_id}/routes")
+@router.get("/api/devices/{device_id}/routes")
 async def get_device_routes(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
@@ -144,7 +155,7 @@ async def get_device_routes(
         raise HTTPException(status_code=404, detail="No routing data available. Try /refresh first.")
     return data.get("routes", [])
 
-@router.get("/{device_id}/vlans")
+@router.get("/api/devices/{device_id}/vlans")
 async def get_device_vlans(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
@@ -156,7 +167,7 @@ async def get_device_vlans(
         return []
     return data.get("vlans", [])
 
-@router.get("/{device_id}/system")
+@router.get("/api/devices/{device_id}/system")
 async def get_device_system(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)
@@ -167,7 +178,7 @@ async def get_device_system(
         raise HTTPException(status_code=404, detail="No data available")
     return data.get("system_info", {})
 
-@router.post("/{device_id}/refresh")
+@router.post("/api/devices/{device_id}/refresh")
 async def refresh_device(
     device_id: int, 
     manager: DeviceManager = Depends(get_manager)

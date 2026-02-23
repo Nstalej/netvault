@@ -28,25 +28,30 @@ class DeviceManager:
             cls._instance = super(DeviceManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, db: DatabaseManager, vault: CredentialVault):
-        # Ensure __init__ only runs once if singleton
-        if hasattr(self, '_initialized') and self._initialized:
-            return
+    def __init__(self):
+        # Set up variables, initialization will happen in initialize()
+        if not hasattr(self, '_initialized'):
+            self._initialized = False
+            self.db = None
+            self.vault = None
+            self._devices: Dict[int, Dict[str, Any]] = {}  # Cache of DB device configs
+            self._connectors: Dict[int, Any] = {}          # Cache of connector instances
+            self._cache: Dict[int, Dict[str, Any]] = {}    # Cache of latest poll data
+            self._semaphore = asyncio.Semaphore(5)         # Default max concurrent polls
             
+    def initialize(self, db: DatabaseManager, vault: CredentialVault):
+        if getattr(self, '_initialized', False):
+            return
         self.db = db
         self.vault = vault
-        self._devices: Dict[int, Dict[str, Any]] = {}  # Cache of DB device configs
-        self._connectors: Dict[int, Any] = {}          # Cache of connector instances
-        self._cache: Dict[int, Dict[str, Any]] = {}    # Cache of latest poll data
-        self._semaphore = asyncio.Semaphore(5)         # Default max concurrent polls
         self._initialized = True
         logger.info("Device Manager initialized")
 
     @classmethod
     def get_instance(cls) -> 'DeviceManager':
         """Access the singleton instance of the Device Manager."""
-        if cls._instance is None:
-            raise RuntimeError("DeviceManager not initialized. Call __init__ first.")
+        if cls._instance is None or not getattr(cls._instance, '_initialized', False):
+            raise RuntimeError("DeviceManager not initialized. Call initialize() first.")
         return cls._instance
 
     async def load_devices(self):
@@ -278,11 +283,12 @@ def get_device_manager(db: Optional[DatabaseManager] = None, vault: Optional[Cre
     """Access the singleton instance of the Device Manager."""
     global _DEVICE_MANAGER_INSTANCE
     if _DEVICE_MANAGER_INSTANCE is None:
-        if db is None or vault is None:
-            # Try to see if it was already initialized via __init__
-            try:
-                return DeviceManager.get_instance()
-            except RuntimeError:
-                raise ValueError("DatabaseManager and CredentialVault required for first initialization")
-        _DEVICE_MANAGER_INSTANCE = DeviceManager(db, vault)
+        _DEVICE_MANAGER_INSTANCE = DeviceManager()
+        
+    if db is not None and vault is not None and not getattr(_DEVICE_MANAGER_INSTANCE, '_initialized', False):
+        _DEVICE_MANAGER_INSTANCE.initialize(db, vault)
+        
+    if not getattr(_DEVICE_MANAGER_INSTANCE, '_initialized', False):
+        raise ValueError("DatabaseManager and CredentialVault required for first initialization")
+        
     return _DEVICE_MANAGER_INSTANCE

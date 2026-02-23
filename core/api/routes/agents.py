@@ -4,6 +4,10 @@ NetVault - Remote Agent management routes
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Header, status
+from fastapi.responses import StreamingResponse
+import os
+import io
+import zipfile
 
 from core.database.models import AgentModel
 from core.database import crud
@@ -80,8 +84,26 @@ async def unregister_agent(
 @router.get("/download/{agent_type}")
 async def download_agent_package(agent_type: str):
     """Provide a download link or package for the requested agent type"""
-    # Phase 4 feature
-    return {
-        "agent_type": agent_type,
-        "download_url": f"https://github.com/ingenieroredes/netvault/releases/latest/agent_{agent_type}.zip"
-    }
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    agent_dir = os.path.join(base_dir, "agents", agent_type)
+    
+    if not os.path.exists(agent_dir):
+        raise HTTPException(status_code=404, detail=f"Agent package for {agent_type} not found locally.")
+        
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(agent_dir):
+            for file in files:
+                if "__pycache__" in root or "venv" in root:
+                    continue
+                file_path = os.path.join(root, file)
+                # Ensure the root of the zip is the agent name (e.g. windows_ad/...)
+                archive_name = os.path.relpath(file_path, os.path.join(base_dir, "agents"))
+                zf.write(file_path, archive_name)
+    
+    memory_file.seek(0)
+    return StreamingResponse(
+        memory_file, 
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=netvault_{agent_type}_agent.zip"}
+    )

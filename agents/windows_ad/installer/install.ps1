@@ -6,8 +6,8 @@ Write-Host "--- NetVault Windows AD Agent Installer ---" -ForegroundColor Cyan
 # 1. Check Prerequisites
 Write-Host "[1/5] Checking prerequisites..."
 if (!(Get-Command python -ErrorAction SilentlyContinue)) {
-    Write-Error "Python not found. Please install Python 3.11+ and add it to PATH."
-    exit 1
+  Write-Error "Python not found. Please install Python 3.11+ and add it to PATH."
+  exit 1
 }
 
 $pythonVersion = python --version
@@ -19,7 +19,7 @@ $serviceDir = Join-Path $PSScriptRoot "..\service"
 Set-Location $serviceDir
 
 if (!(Test-Path "venv")) {
-    python -m venv venv
+  python -m venv venv
 }
 
 # 3. Install Dependencies
@@ -61,9 +61,10 @@ Write-Host "To start the agent manually: .\venv\Scripts\python ad_agent.py"
 
 $registerService = Read-Host "Would you like to register as a Windows Service? (y/n)"
 if ($registerService -eq 'y') {
-    Write-Host "Service registration via pywin32 is recommended but requires admin privileges."
-    Write-Host "Manual service creation command (example):"
-    Write-Host "nssm install NetVaultADAgent (if nssm is available)"
+  Write-Host "Registering service via pywin32..."
+  .\venv\Scripts\python service_wrapper.py install
+  .\venv\Scripts\python service_wrapper.py start
+  Write-Host "Service installed and started."
 }
 
 Write-Host "`nInstallation Complete!" -ForegroundColor Green

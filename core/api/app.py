@@ -54,7 +54,8 @@ async def lifespan(app: FastAPI):
         app.state.vault = vault
         
         # Initialize Core Engine
-        device_manager = DeviceManager(db, vault)
+        from core.engine.device_manager import get_device_manager
+        device_manager = get_device_manager(db, vault)
         app.state.device_manager = device_manager
         
         # Initialize Audit Engine
@@ -75,10 +76,11 @@ async def lifespan(app: FastAPI):
             logger.info(f"MCP Server started on port {config.mcp.port}")
             
     except Exception as e:
-        logger.critical(f"Critical failure during application startup: {e}", exc_info=True)
+        logger.critical(f"❌ FATAL: Startup failed: {e}", exc_info=True)
         # Re-raise to ensure the application fails to start
         raise
 
+    logger.info("✅ All components initialized")
     yield
     
     # Shutdown
