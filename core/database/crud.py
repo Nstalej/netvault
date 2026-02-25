@@ -71,6 +71,18 @@ async def create_agent(db: DatabaseManager, agent: AgentModel) -> int:
     )
     return await db.execute(query, params)
 
+async def upsert_agent(db: DatabaseManager, agent: AgentModel) -> int:
+    row = await db.fetch_one("SELECT id FROM agents WHERE hostname = ? AND type = ?", (agent.hostname, agent.type))
+    if row:
+        agent_id = row["id"]
+        await db.execute(
+            "UPDATE agents SET status = ?, last_heartbeat = CURRENT_TIMESTAMP, config_json = ?, ip = ? WHERE id = ?",
+            (agent.status, json.dumps(agent.config_json), agent.ip, agent_id)
+        )
+        return agent_id
+    else:
+        return await create_agent(db, agent)
+
 async def get_agent(db: DatabaseManager, agent_id: int) -> Optional[Dict[str, Any]]:
     row = await db.fetch_one("SELECT * FROM agents WHERE id = ?", (agent_id,))
     if row:

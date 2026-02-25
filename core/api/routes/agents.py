@@ -46,7 +46,7 @@ async def register_agent(
 ):
     """Agent self-registration (called by the agent on startup)"""
     try:
-        agent_id = await crud.create_agent(db, agent)
+        agent_id = await crud.upsert_agent(db, agent)
         return {"agent_id": agent_id, "message": "Agent registered successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

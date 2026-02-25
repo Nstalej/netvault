@@ -19,13 +19,16 @@ $serviceDir = Join-Path $PSScriptRoot "..\service"
 Set-Location $serviceDir
 
 if (!(Test-Path "venv")) {
+  python -m venv --help 2>$null
+  if ($LASTEXITCODE -ne 0) { Write-Error "Python venv module not available. Please ensure Python is properly installed."; exit 1 }
   python -m venv venv
+  if (!(Test-Path ".\venv\Scripts\python.exe")) { Write-Error "venv creation failed"; exit 1 }
 }
 
 # 3. Install Dependencies
 Write-Host "[3/5] Installing dependencies..."
-.\venv\Scripts\python -m pip install --upgrade pip
-.\venv\Scripts\pip install -r requirements.txt
+& ".\venv\Scripts\python.exe" -m pip install --upgrade pip
+& ".\venv\Scripts\pip.exe" install -r requirements.txt
 
 # 4. Configure Agent
 Write-Host "[4/5] Configuration..."
@@ -57,13 +60,13 @@ $configContent | Out-File -FilePath (Join-Path $serviceDir "config.yml") -Encodi
 # 5. Register Service (Optional)
 Write-Host "[5/5] Finalizing..."
 Write-Host "Agent configured successfully."
-Write-Host "To start the agent manually: .\venv\Scripts\python ad_agent.py"
+Write-Host "To start the agent manually: & "".\venv\Scripts\python.exe"" ad_agent.py"
 
 $registerService = Read-Host "Would you like to register as a Windows Service? (y/n)"
 if ($registerService -eq 'y') {
   Write-Host "Registering service via pywin32..."
-  .\venv\Scripts\python service_wrapper.py install
-  .\venv\Scripts\python service_wrapper.py start
+  & ".\venv\Scripts\python.exe" service_wrapper.py install
+  & ".\venv\Scripts\python.exe" service_wrapper.py start
   Write-Host "Service installed and started."
 }
 

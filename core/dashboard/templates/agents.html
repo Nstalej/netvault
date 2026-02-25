@@ -78,8 +78,8 @@
             agents.map(a => `
                 <tr>
                     <td><strong>${a.name}</strong></td>
-                    <td><code>${a.hostname || a.ip_address}</code></td>
-                    <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${a.agent_type}</span></td>
+                    <td><code>${a.hostname || a.ip}</code></td>
+                    <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${a.type}</span></td>
                     <td>
                         <span class="status-badge ${a.status === 'online' ? 'online' : ''}" style="padding: 0.2rem 0.5rem; background: ${a.status === 'online' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${a.status === 'online' ? 'var(--success)' : 'var(--danger)'}; border: 1px solid ${a.status === 'online' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'};">
                             ${a.status.toUpperCase()}

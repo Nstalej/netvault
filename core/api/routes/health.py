@@ -20,6 +20,9 @@ async def health_check(request: Request):
     
     config: Settings = request.app.state.config
     start_time: datetime = request.app.state.start_time
+    
+    if start_time.tzinfo is None:
+        start_time = start_time.replace(tzinfo=timezone.utc)
     uptime = (datetime.now(timezone.utc) - start_time).total_seconds()
     
     return {

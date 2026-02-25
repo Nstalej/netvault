@@ -8,9 +8,14 @@
     <div class="search-box" style="flex: 1; max-width: 500px; margin-right: 1rem;">
         <input type="text" id="device-search" placeholder="Search by IP, Name or Type..." onkeyup="filterTable()">
     </div>
-    <button class="btn btn-primary" onclick="showAddModal()">
-        <i class="fas fa-plus"></i> Add New Device
-    </button>
+    <div>
+        <button class="btn btn-outline" onclick="testAllDevices()" style="margin-right: 0.5rem;">
+            <i class="fas fa-network-wired"></i> Test All Devices
+        </button>
+        <button class="btn btn-primary" onclick="showAddModal()">
+            <i class="fas fa-plus"></i> Add New Device
+        </button>
+    </div>
 </div>
 
 <div class="card" style="padding: 0;">
@@ -204,6 +209,15 @@
         const res = await fetchData(`/api/devices/${id}/test`, { method: 'POST' });
         if (res) alert(res.success ? `Test successful! Latency: ${res.latency_ms}ms` : `Test failed: ${res.error}`);
         refreshData();
+    }
+
+    async function testAllDevices() {
+        if (!confirm('Test connectivity for all devices? This may take a moment.')) return;
+        const res = await fetchData('/api/devices/test-all', { method: 'POST' });
+        if (res) {
+            alert(`Tested ${res.total} devices. ${res.online} online, ${res.offline} offline.`);
+            refreshData();
+        }
     }
 
     function filterTable() {

@@ -110,6 +110,28 @@ async def test_device_connectivity(
         "latency_ms": result.latency_ms,
         "error": result.error_message
     }
+    
+@router.post("/api/devices/test-all")
+async def test_all_devices(manager: DeviceManager = Depends(get_manager)):
+    """Test all devices sequence"""
+    devices = await crud.list_devices(manager.db)
+    results = []
+    online = 0
+    offline = 0
+    for device in devices:
+        res = await test_device_connectivity(device["id"], manager)
+        results.append(res)
+        if res["success"]:
+            online += 1
+        else:
+            offline += 1
+            
+    return {
+        "total": len(devices),
+        "online": online,
+        "offline": offline,
+        "results": results
+    }
 
 @router.get("/api/devices/{device_id}/interfaces")
 async def get_device_interfaces(

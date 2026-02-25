@@ -103,9 +103,17 @@
         body.innerHTML = filtered.length === 0 ?
             '<tr><td colspan="6" style="text-align:center; padding: 2rem;">No audit records found.</td></tr>' :
             filtered.map(r => {
-                const results = r.results || {};
-                const checkCount = results.checks_performed || 0;
-                const failCount = results.vulnerabilities_found || 0;
+                const resultObj = r.result_json || {};
+                let checkCount = 0;
+                let failCount = 0;
+
+                if (resultObj.summary) {
+                    failCount = resultObj.summary.vulnerabilities || 0;
+                    checkCount = resultObj.checks ? resultObj.checks.length : 0;
+                } else {
+                    checkCount = resultObj.checks_performed || 0;
+                    failCount = resultObj.vulnerabilities_found || 0;
+                }
 
                 return `
                     <tr>
@@ -139,17 +147,39 @@
             document.getElementById('report-target').textContent = r.device_id === 0 ? 'Global Network' : 'Device #' + r.device_id;
 
             const detailContainer = document.getElementById('report-details');
-            const findings = r.results || {};
+            const resultObj = r.result_json || {};
 
-            if (findings.checks && Object.keys(findings.checks).length > 0) {
-                detailContainer.innerHTML = Object.entries(findings.checks).map(([name, check]) => `
+            if (resultObj.checks && Array.isArray(resultObj.checks) && resultObj.checks.length > 0) {
+                // New struct (AD Audit array format)
+                detailContainer.innerHTML = resultObj.checks.map(check => {
+                    const isPass = check.status === 'pass';
+                    const isWarning = check.status === 'warning';
+                    const isCrit = check.status === 'critical';
+                    let c = isPass ? 'var(--success)' : (isWarning ? 'var(--warning)' : 'var(--danger)');
+                    let bg = isPass ? 'rgba(74, 222, 128, 0.02)' : (isWarning ? 'rgba(251, 191, 36, 0.02)' : 'rgba(248, 113, 113, 0.02)');
+
+                    return `
+                    <div style="padding: 1rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem; background: ${bg};">
+                        <div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600;">${check.name}</span>
+                            <span style="color: ${c}; font-weight: 700;">${check.status.toUpperCase()}</span>
+                        </div>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; font-size: 0.85rem; color: var(--text-secondary);">
+                            ${check.findings && check.findings.length > 0 ? check.findings.map(f => '<li>' + f + '</li>').join('') : '<li>No issues found</li>'}
+                        </ul>
+                    </div>
+                    `;
+                }).join('');
+            } else if (resultObj.checks && Object.keys(resultObj.checks).length > 0) {
+                // Old Struct
+                detailContainer.innerHTML = Object.entries(resultObj.checks).map(([name, check]) => `
                     <div style="padding: 1rem; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem; background: ${check.passed ? 'rgba(74, 222, 128, 0.02)' : 'rgba(248, 113, 113, 0.02)'};">
                         <div style="display:flex; justify-content:space-between; margin-bottom: 0.5rem;">
                             <span style="font-weight: 600;">${name.replace(/_/g, ' ')}</span>
                             <span style="color: ${check.passed ? 'var(--success)' : 'var(--danger)'}; font-weight: 700;">${check.passed ? 'PASSED' : 'FAILED'}</span>
                         </div>
                         <div style="font-size: 0.85rem; color: var(--text-secondary);">${check.message || 'No description provided'}</div>
-                        ${check.details ? `<pre style="margin-top:0.5rem; font-size:0.75rem; background:var(--bg-secondary); padding:0.5rem; border-radius:4px; overflow-x:auto;">${JSON.stringify(check.details, null, 2)}</pre>` : ''}
+                        ${check.details ? '<pre style="margin-top:0.5rem; font-size:0.75rem; background:var(--bg-secondary); padding:0.5rem; border-radius:4px; overflow-x:auto;">' + JSON.stringify(check.details, null, 2) + '</pre>' : ''}
                     </div>
                 `).join('');
             } else {

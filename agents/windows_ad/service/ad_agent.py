@@ -34,7 +34,7 @@ class ADAgent:
         self.token = self.config['netvault']['agent_token']
         self.agent_id = None
         self.hostname = socket.gethostname()
-        self.ip = socket.gethostbyname(self.hostname)
+        self.ip = self.config['netvault'].get('agent_ip', socket.gethostbyname(self.hostname))
         
         self.collector = ADCollector(
             server=self.config['ad']['server'],

@@ -4,9 +4,18 @@ NetVault - Windows AD Agent - Data Collector
 import logging
 from typing import List, Dict, Any, Optional
 from ldap3 import Server, Connection, ALL, SUBTREE, ALL_ATTRIBUTES, Tls
+from datetime import datetime
 import ssl
 
 logger = logging.getLogger(__name__)
+
+def _safe_get(entry: dict, key: str, default: Any = None) -> Any:
+    val = entry.get(key)
+    if val is None:
+        return default
+    if isinstance(val, list):
+        return val[0] if len(val) > 0 else default
+    return val
 
 class ADCollector:
     def __init__(self, server: str, user: str, password: str, base_dn: str, use_ssl: bool = True):
@@ -66,10 +75,17 @@ class ADCollector:
         users = []
         for entry in self.connection.entries:
             user_data = entry.entry_attributes_as_dict
-            # Decode userAccountControl
-            uac = int(user_data.get('userAccountControl', [0])[0])
+            # Decode userAccountControl safely
+            uac_val = _safe_get(user_data, 'userAccountControl', 0)
+            uac = int(uac_val) if uac_val else 0
             user_data['is_disabled'] = bool(uac & 2)
-            user_data['is_locked'] = int(user_data.get('lockoutTime', [0])[0]) > 0
+            
+            lockout_val = _safe_get(user_data, 'lockoutTime', 0)
+            if isinstance(lockout_val, datetime):
+                user_data['is_locked'] = lockout_val.timestamp() > 0
+            else:
+                user_data['is_locked'] = int(lockout_val) > 0 if lockout_val else False
+                
             users.append(user_data)
         
         return users
@@ -167,7 +183,6 @@ class ADCollector:
 
     def get_replication(self) -> List[Dict[str, Any]]:
         """Collect NTDS replication status (place-holder for future extension)"""
-        # This usually requires connecting to the Configuration partition
         return []
 
     def get_dhcp(self) -> List[Dict[str, Any]]:
