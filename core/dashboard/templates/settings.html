@@ -4,22 +4,43 @@
 {% block page_title %}System Settings{% endblock %}
 
 {% block content %}
+<style>
+    .nav-item {
+        padding: 0.75rem 1rem;
+        border-radius: 6px;
+        color: var(--text-muted);
+        transition: all 0.2s;
+        margin-bottom: 0.25rem;
+    }
+
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+    }
+
+    .nav-item.active {
+        color: var(--accent) !important;
+        background: rgba(6, 182, 212, 0.1) !important;
+        border-left: 3px solid var(--accent) !important;
+        border-radius: 0 6px 6px 0;
+    }
+</style>
 <div style="display: flex; gap: 2rem;">
     <!-- Sidebar Tabs -->
     <div style="width: 200px;">
         <div class="card" style="padding: 0.5rem;">
             <button class="nav-item active"
-                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;"
+                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-left: 3px solid transparent;"
                 onclick="showTab('general', this)">
                 <i class="fas fa-sliders-h"></i> General
             </button>
             <button class="nav-item"
-                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;"
+                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-left: 3px solid transparent;"
                 onclick="showTab('credentials', this)">
                 <i class="fas fa-key"></i> Credentials
             </button>
             <button class="nav-item"
-                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer;"
+                style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-left: 3px solid transparent;"
                 onclick="showTab('logs', this)">
                 <i class="fas fa-terminal"></i> System Logs
             </button>
@@ -37,12 +58,20 @@
 
             <form id="settings-form" onsubmit="saveSettings(event)">
                 <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Application Name</label>
-                    <input type="text" id="app-name" value="{{ config.app.name }}">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Application Name <i
+                            class="fas fa-lock" style="font-size: 0.75rem; color: var(--text-muted);"
+                            title="Requires admin authentication (coming in v0.2)"></i></label>
+                    <input type="text" id="app-name" value="{{ config.app.name }}" readonly disabled
+                        style="background: var(--bg-secondary); cursor: not-allowed; opacity: 0.7;"
+                        title="Requires admin authentication (coming in v0.2)">
                 </div>
                 <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Dashboard Port</label>
-                    <input type="number" id="app-port" value="{{ config.server.dashboard_port }}">
+                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Dashboard Port <i
+                            class="fas fa-lock" style="font-size: 0.75rem; color: var(--text-muted);"
+                            title="Requires admin authentication (coming in v0.2)"></i></label>
+                    <input type="number" id="app-port" value="{{ config.server.dashboard_port }}" readonly disabled
+                        style="background: var(--bg-secondary); cursor: not-allowed; opacity: 0.7;"
+                        title="Requires admin authentication (coming in v0.2)">
                 </div>
                 <div style="margin-bottom: 1.5rem;">
                     <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Data Retention

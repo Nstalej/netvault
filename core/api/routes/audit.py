@@ -67,7 +67,8 @@ async def list_audit_results(
     db: DatabaseManager = Depends(get_db)
 ):
     """List historical audit results, optionally filtered by device"""
-    return await crud.list_audit_logs(db, device_id)
+    results = await crud.list_audit_logs(db, device_id)
+    return sorted(results, key=lambda x: x.get("id", 0), reverse=True)
 
 @router.get("/results/{audit_id}", response_model=Dict[str, Any])
 async def get_audit_result(

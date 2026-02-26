@@ -4,6 +4,27 @@
 {% block page_title %}Device Inventory{% endblock %}
 
 {% block content %}
+<style>
+    #full-devices-table {
+        width: 100%;
+        border-collapse: collapse;
+        border-spacing: 0;
+    }
+
+    #full-devices-table tr {
+        border-bottom: 1px solid var(--border);
+    }
+
+    #full-devices-table th,
+    #full-devices-table td {
+        padding: 0.75rem 1rem;
+        text-align: left;
+    }
+
+    #full-devices-table tr:last-child {
+        border-bottom: none;
+    }
+</style>
 <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
     <div class="search-box" style="flex: 1; max-width: 500px; margin-right: 1rem;">
         <input type="text" id="device-search" placeholder="Search by IP, Name or Type..." onkeyup="filterTable()">

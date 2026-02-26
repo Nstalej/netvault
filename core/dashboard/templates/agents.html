@@ -57,8 +57,19 @@
             <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
                 <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Auth Token</h4>
                 <div
-                    style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem; border: 1px solid var(--border); overflow-x: auto;">
-                    {{ agent_auth_token }}
+                    style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem; border: 1px solid var(--border); overflow-x: auto; display: flex; gap: 0.5rem; align-items: center;">
+                    <input id="auth-token" type="password" value="{{ agent_auth_token }}" readonly
+                        style="flex: 1; font-family: monospace; background: transparent; border: none; outline: none; color: inherit; font-size: inherit; padding: 0; min-width: 0;">
+                    <button class="btn btn-outline"
+                        style="padding: 0.2rem 0.5rem; font-size: 0.8rem; height: 28px; width: 28px; display: flex; align-items: center; justify-content: center;"
+                        onclick="toggleToken()" title="Show/Hide">
+                        <i id="token-eye" class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-outline"
+                        style="padding: 0.2rem 0.5rem; font-size: 0.8rem; height: 28px; width: 28px; display: flex; align-items: center; justify-content: center;"
+                        onclick="copyToken(event)" title="Copy">
+                        <i class="fas fa-copy"></i>
+                    </button>
                 </div>
                 <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">
                     Keep this token secret. Used by agents to authenticate.
@@ -71,6 +82,31 @@
 
 {% block scripts %}
 <script>
+    function toggleToken() {
+        const input = document.getElementById('auth-token');
+        const icon = document.getElementById('token-eye');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.className = 'fas fa-eye-slash';
+        } else {
+            input.type = 'password';
+            icon.className = 'fas fa-eye';
+        }
+    }
+
+    function copyToken(event) {
+        const input = document.getElementById('auth-token');
+        navigator.clipboard.writeText(input.value);
+        const btn = event.currentTarget;
+        const icon = btn.querySelector('i');
+        const originalClass = icon.className;
+        icon.className = 'fas fa-check';
+        icon.style.color = 'var(--success)';
+        setTimeout(() => {
+            icon.className = originalClass;
+            icon.style.color = '';
+        }, 1500);
+    }
     async function refreshPageData() {
         const agents = await fetchData('/api/agents/');
         const body = document.getElementById('agents-body');
@@ -82,7 +118,10 @@
             agents.map(a => `
                 <tr style="cursor: pointer;" onclick="loadAgentAudit(${a.id}, '${a.type}')">
                     <td><strong>${a.name}</strong></td>
-                    <td><code>${a.hostname || a.ip}</code></td>
+                    <td>
+                        <code>${a.hostname || 'Unknown Host'}</code><br>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">${a.ip || 'No IP'}</span>
+                    </td>
                     <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${a.type}</span></td>
                     <td>
                         <span class="status-badge ${a.status === 'online' ? 'online' : ''}" style="padding: 0.2rem 0.5rem; background: ${a.status === 'online' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${a.status === 'online' ? 'var(--success)' : 'var(--danger)'}; border: 1px solid ${a.status === 'online' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'};">
