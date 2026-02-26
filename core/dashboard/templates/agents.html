@@ -72,7 +72,7 @@
 {% block scripts %}
 <script>
     async function refreshPageData() {
-        const agents = await fetchData('/api/agents');
+        const agents = await fetchData('/api/agents/');
         const body = document.getElementById('agents-body');
 
         if (!agents) return;
@@ -98,7 +98,7 @@
         if (type !== 'windows_ad') return; // For now only handle AD
 
         try {
-            const audits = await fetchData(`/api/audit/results?limit=10`);
+            const audits = await fetchData(`/api/audit/results/?limit=10`);
             const agentAudit = audits.find(a => a.agent_id === agentId);
             const viewDiv = document.getElementById('ad-detailed-view');
 

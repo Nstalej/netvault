@@ -95,7 +95,7 @@
 {% block scripts %}
 <script>
     async function refreshPageData() {
-        const devices = await fetchData('/api/devices');
+        const devices = await fetchData('/api/devices/');
         const body = document.getElementById('devices-body');
 
         if (!devices) return;
@@ -129,7 +129,7 @@
         document.getElementById('device-form').reset();
 
         // Load credentials for dropdown
-        const creds = await fetchData('/api/credentials');
+        const creds = await fetchData('/api/credentials/');
         const credSelect = document.getElementById('dev-credential');
         credSelect.innerHTML = '<option value="">-- No Credential --</option>';
         if (creds) {
@@ -158,7 +158,7 @@
         };
 
         const method = id ? 'PUT' : 'POST';
-        const url = id ? `/api/devices/${id}` : '/api/devices';
+        const url = id ? `/api/devices/${id}` : '/api/devices/';
 
         const res = await fetchData(url, {
             method: method,
@@ -183,7 +183,7 @@
             document.getElementById('dev-type').value = d.connector_type || 'ssh';
 
             // Load credentials for dropdown
-            const creds = await fetchData('/api/credentials');
+            const creds = await fetchData('/api/credentials/');
             const credSelect = document.getElementById('dev-credential');
             credSelect.innerHTML = '<option value="">-- No Credential --</option>';
             if (creds) {

@@ -107,7 +107,7 @@ def create_app(config: Settings) -> FastAPI:
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,
-        redirect_slashes=False
+        redirect_slashes=True
     )
     
     # Global state

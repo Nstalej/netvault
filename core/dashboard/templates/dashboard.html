@@ -99,7 +99,7 @@
 <script>
     async function refreshPageData() {
         // 1. Devices and Network Status
-        const devices = await fetchData('/api/devices');
+        const devices = await fetchData('/api/devices/');
         if (devices) {
             document.getElementById('count-devices').textContent = devices.length;
             const table = document.getElementById('devices-table');
@@ -154,14 +154,14 @@
         }
 
         // 3. Active Agents
-        const agents = await fetchData('/api/agents');
+        const agents = await fetchData('/api/agents/');
         if (agents) {
             const onlineCount = agents.filter(a => a.status === 'online').length;
             document.getElementById('count-agents').textContent = onlineCount.toString();
         }
 
         // 4. Audits
-        const audits = await fetchData('/api/audit/results?limit=5');
+        const audits = await fetchData('/api/audit/results/?limit=5');
         if (audits) {
             const list = document.getElementById('audits-list');
             list.innerHTML = audits.length === 0 ?

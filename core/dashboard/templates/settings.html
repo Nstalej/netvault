@@ -157,7 +157,7 @@
     }
 
     async function loadCredentials() {
-        const creds = await fetchData('/api/credentials');
+        const creds = await fetchData('/api/credentials/');
         const body = document.getElementById('creds-body');
         if (!creds) return;
 
@@ -200,7 +200,7 @@
             }
         };
 
-        const res = await fetchData('/api/credentials', {
+        const res = await fetchData('/api/credentials/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)

@@ -89,7 +89,7 @@
         const type = document.getElementById('audit-filter-type').value;
         const status = document.getElementById('audit-filter-status').value;
 
-        let url = '/api/audit/results?limit=50';
+        let url = '/api/audit/results/?limit=50';
         if (type) url += `&audit_type=${type}`;
 
         const results = await fetchData(url);
@@ -135,7 +135,7 @@
     }
 
     async function viewAudit(id) {
-        const results = await fetchData('/api/audit/results?limit=100'); // Find the specific one
+        const results = await fetchData('/api/audit/results/?limit=100'); // Find the specific one
         const r = results.find(x => x.id === id);
 
         if (r) {
