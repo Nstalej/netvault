@@ -145,7 +145,7 @@
         }
 
         // 2. Health & Uptime
-        const health = await fetchData('/health');
+        const health = await fetchData('/api/v1/health');
         if (health) {
             const sec = health.uptime_seconds || 0;
             const h = Math.floor(sec / 3600);

@@ -1,3 +1,17 @@
+"""
+NetVault - Windows AD Agent - Service Wrapper (DEPRECATED)
+
+NOTE: This file is kept for backward compatibility but is NOT the 
+recommended way to run the agent as a Windows service.
+
+Use NSSM (Non-Sucking Service Manager) instead:
+  nssm install NetVaultADAgent <python.exe path> <ad_agent.py path>
+  nssm start NetVaultADAgent
+
+The install.ps1 script handles NSSM installation automatically.
+See: agents/windows_ad/installer/install.ps1
+"""
+
 import win32serviceutil
 import win32service
 import win32event
@@ -6,7 +20,7 @@ import sys
 import logging
 import asyncio
 import os
-from agents.windows_ad.service.ad_agent import ADAgent
+from ad_agent import ADAgent
 
 # Ensure working directory is correct when running as service
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -47,23 +61,27 @@ class AppServerSvc(win32serviceutil.ServiceFramework):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             
-            task = loop.create_task(agent.main_loop())
+            async def run_with_stop():
+                """Run agent loop until stop event is set"""
+                task = asyncio.create_task(agent.main_loop())
+                # Check stop event periodically
+                while self.is_running:
+                    done, _ = await asyncio.wait({task}, timeout=1.0)
+                    if done:
+                        break  # main_loop finished (error or clean exit)
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
             
-            # Periodically check for stop event
-            while self.is_running:
-                loop.run_until_complete(asyncio.sleep(1))
-                rc = win32event.WaitForSingleObject(self.hWaitStop, 1000)
-                if rc == win32event.WAIT_OBJECT_0:
-                    break
-            
-            task.cancel()
-            try:
-                loop.run_until_complete(task)
-            except asyncio.CancelledError:
-                pass
+            loop.run_until_complete(run_with_stop())
             loop.close()
         except Exception as e:
             logger.error(f"Service error: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:

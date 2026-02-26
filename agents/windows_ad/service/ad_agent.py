@@ -55,7 +55,7 @@ class ADAgent:
                 'ad': {'server': 'localhost', 'user': 'admin', 'password': 'password', 'base_dn': 'DC=domain,DC=local'}
             }
         
-        with open(self.config_path, 'r') as f:
+        with open(self.config_path, 'r', encoding='utf-8-sig') as f:
             config = yaml.safe_load(f)
         
         # Override with environment variables if present
@@ -115,6 +115,9 @@ class ADAgent:
         logger.info("Starting AD audit...")
         ad_data = self.collector.collect_all()
         audit_results = self.auditor.audit(ad_data)
+        
+        # Include detailed raw AD data according to QA requested fix (Bug 4)
+        audit_results["data"] = ad_data
         
         url = f"{self.server_url}/api/audit/results"
         payload = {

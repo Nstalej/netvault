@@ -26,6 +26,10 @@ logger = logging.getLogger("netvault.api")
 
 def get_local_ip(config_ip: Optional[str] = None) -> str:
     """Auto-detect the container's IP address or use config override"""
+    env_ip = os.getenv("NETVAULT_SERVER_IP") or os.getenv("LOCAL_IP")
+    if env_ip:
+        return env_ip
+
     if config_ip and config_ip not in ["0.0.0.0", "::"]:
         return config_ip
         

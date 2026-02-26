@@ -29,6 +29,10 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Detailed View Container -->
+        <div id="ad-detailed-view" style="display: none; border-top: 1px solid var(--border); margin-top: 1rem;">
+        </div>
     </div>
 
     <!-- Agent Downloads & Info -->
@@ -76,7 +80,7 @@
         body.innerHTML = agents.length === 0 ?
             '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No agents registered.</td></tr>' :
             agents.map(a => `
-                <tr>
+                <tr style="cursor: pointer;" onclick="loadAgentAudit(${a.id}, '${a.type}')">
                     <td><strong>${a.name}</strong></td>
                     <td><code>${a.hostname || a.ip}</code></td>
                     <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${a.type}</span></td>
@@ -88,6 +92,102 @@
                     <td style="font-size: 0.8rem; color: var(--text-muted);">${a.last_heartbeat ? new Date(a.last_heartbeat).toLocaleString() : 'Never'}</td>
                 </tr>
             `).join('');
+    }
+
+    async function loadAgentAudit(agentId, type) {
+        if (type !== 'windows_ad') return; // For now only handle AD
+
+        try {
+            const audits = await fetchData(`/api/audit/results?limit=10`);
+            const agentAudit = audits.find(a => a.agent_id === agentId);
+            const viewDiv = document.getElementById('ad-detailed-view');
+
+            if (!agentAudit || !agentAudit.result_json || !agentAudit.result_json.data) {
+                viewDiv.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-muted);">No AD audit details available yet for this agent. Ensure the agent has run at least one audit.</div>';
+                viewDiv.style.display = 'block';
+                return;
+            }
+
+            const summary = agentAudit.result_json.summary || {};
+            const users = agentAudit.result_json.data.users || [];
+
+            let html = `
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
+                    <h3 style="margin: 0; color: var(--accent);">Active Directory Overview</h3>
+                </div>
+                <div style="padding: 1.5rem; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 1.5rem; color: var(--accent); margin-bottom: 0.5rem;">${summary.total_users || users.length || 0}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Total Users</div>
+                    </div>
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${summary.total_groups || 0}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Total Groups</div>
+                    </div>
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${summary.total_computers || 0}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Computers</div>
+                    </div>
+                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
+                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${summary.total_gpos || 0}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">GPOs</div>
+                    </div>
+                    <div style="background: rgba(248, 113, 113, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(248, 113, 113, 0.2); text-align: center;">
+                        <div style="font-size: 1.5rem; color: var(--danger); margin-bottom: 0.5rem;">${summary.vulnerabilities || 0}</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">Vulnerabilities</div>
+                    </div>
+                </div>
+                
+                <div style="padding: 1.5rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+                    <h3 style="margin: 0;">AD Users</h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Display Name</th>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Locked</th>
+                                <th>Last Logon</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${users.length === 0 ? '<tr><td colspan="6" style="text-align:center;">No users found in AD data.</td></tr>' :
+                    users.slice(0, 50).map(u => {
+                        const isEnabled = (u.userAccountControl & 2) === 0;
+                        const isLocked = u.lockoutTime && u.lockoutTime > 0;
+                        return `
+                                <tr>
+                                    <td><strong>${u.sAMAccountName || ''}</strong></td>
+                                    <td>${u.displayName || u.cn || ''}</td>
+                                    <td><span style="font-size: 0.8rem; color: var(--text-secondary);">${u.mail || '-'}</span></td>
+                                    <td>
+                                        <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: ${isEnabled ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${isEnabled ? 'var(--success)' : 'var(--danger)'};">
+                                            ${isEnabled ? 'Enabled' : 'Disabled'}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; ${isLocked ? 'background: rgba(250, 204, 21, 0.1); color: var(--warning);' : 'color: var(--text-muted);'}">
+                                            ${isLocked ? 'Locked' : 'No'}
+                                        </span>
+                                    </td>
+                                    <td style="font-size: 0.8rem; color: var(--text-muted);">${u.lastLogonTimestamp ? new Date(u.lastLogonTimestamp).toLocaleString() : 'Never'}</td>
+                                </tr>
+                            `}).join('')}
+                        </tbody>
+                    </table>
+                    ${users.length > 50 ? '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Showing first 50 users.</div>' : ''}
+                </div>
+            `;
+
+            viewDiv.innerHTML = html;
+            viewDiv.style.display = 'block';
+
+        } catch (err) {
+            console.error("Failed to load AD details", err);
+        }
     }
 </script>
 {% endblock %}
