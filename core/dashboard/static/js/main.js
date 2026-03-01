@@ -36,7 +36,7 @@ async function refreshData() {
     }
 
     // Refresh common health info
-    const health = await fetchData('/health');
+    const health = await fetchData('/api/v1/health');
     if (health) {
         // We could update more global elements here if needed
     }
@@ -49,7 +49,7 @@ async function refreshData() {
 async function runAudit(deviceId = 0, type = 'network') {
     if (!confirm(`Start ${deviceId === 0 ? 'global network' : 'device'} audit?`)) return;
 
-    const result = await fetchData(`/api/audit/run?device_id=${deviceId}&audit_type=${type}`, { method: 'POST' });
+    const result = await fetchData(`/api/v1/audit/run?device_id=${deviceId}&audit_type=${type}`, { method: 'POST' });
     if (result) {
         alert('Audit triggered successfully');
         refreshData();

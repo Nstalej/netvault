@@ -11,8 +11,10 @@ from fastapi import APIRouter, Request
 from core.config import Settings
 
 router = APIRouter(tags=["system"])
+v1_router = APIRouter(prefix="/api/v1", tags=["system-v1"])
 
 @router.get("/health")
+@v1_router.get("/health")
 async def health_check(request: Request):
     """System health check for Docker and monitoring"""
     checks = {

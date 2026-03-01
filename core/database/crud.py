@@ -109,20 +109,52 @@ async def create_audit_log(db: DatabaseManager, log: AuditLogModel) -> int:
     )
     return await db.execute(query, params)
 
-async def list_audit_logs(db: DatabaseManager, device_id: Optional[int] = None) -> List[Dict[str, Any]]:
+async def list_audit_logs(
+    db: DatabaseManager,
+    device_id: Optional[int] = None,
+    audit_type: Optional[str] = None,
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+) -> List[Dict[str, Any]]:
     query = "SELECT * FROM audit_logs"
-    params = ()
-    if device_id:
-        query += " WHERE device_id = ?"
-        params = (device_id,)
-    
-    rows = await db.fetch_all(query, params)
+    conditions = []
+    params: List[Any] = []
+
+    if device_id is not None:
+        conditions.append("device_id = ?")
+        params.append(device_id)
+    if audit_type:
+        conditions.append("audit_type = ?")
+        params.append(audit_type)
+    if status:
+        conditions.append("status = ?")
+        params.append(status)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY id DESC"
+
+    if limit > 0:
+        query += " LIMIT ? OFFSET ?"
+        params.extend([limit, max(offset, 0)])
+
+    rows = await db.fetch_all(query, tuple(params))
     result = []
     for row in rows:
         d = dict(row)
         d["result_json"] = json.loads(d["result_json"])
         result.append(d)
     return result
+
+async def get_audit_log(db: DatabaseManager, audit_id: int) -> Optional[Dict[str, Any]]:
+    row = await db.fetch_one("SELECT * FROM audit_logs WHERE id = ?", (audit_id,))
+    if not row:
+        return None
+    data = dict(row)
+    data["result_json"] = json.loads(data.get("result_json") or "{}")
+    return data
 
 # ─── Alert Rule and Alert CRUD ───
 
