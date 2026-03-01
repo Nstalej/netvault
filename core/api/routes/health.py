@@ -1,14 +1,18 @@
 """
 NetVault - Health and Info Routes
 """
+import os
+import json
 from datetime import datetime, timezone
+from typing import Dict, Any, List
+from pathlib import Path
 from fastapi import APIRouter, Request
 
 from core.config import Settings
 
 router = APIRouter(tags=["system"])
 
-@router.get("/api/v1/health")
+@router.get("/health")
 async def health_check(request: Request):
     """System health check for Docker and monitoring"""
     checks = {
@@ -61,3 +65,68 @@ async def api_info(request: Request):
             "credentials": "/api/credentials"
         }
     }
+
+
+@router.get("/api/logs")
+async def get_logs(request: Request, lines: int = 100):
+    """Fetch the last N lines from the application log file"""
+    config: Settings = request.app.state.config
+    log_file = config.logging.file
+    
+    if not log_file or not os.path.exists(log_file):
+        # Fallback to current directory logs if config path fails
+        alt_path = Path("logs/netvault.log")
+        if alt_path.exists():
+            log_file = alt_path
+        else:
+            return {"logs": [], "error": "Log file not found"}
+
+    try:
+        with open(log_file, "r") as f:
+            # Simple tail implementation
+            all_lines = f.readlines()
+            last_lines = all_lines[-lines:]
+            
+            parsed_logs = []
+            for line in last_lines:
+                try:
+                    parsed_logs.append(json.loads(line))
+                except:
+                    parsed_logs.append({"message": line.strip(), "level": "INFO", "timestamp": ""})
+            
+            return {"logs": parsed_logs}
+    except Exception as e:
+        return {"logs": [], "error": str(e)}
+
+
+@router.get("/api/settings")
+async def get_settings(request: Request):
+    """Get dynamic settings from database and config"""
+    db = request.app.state.db
+    config = request.app.state.config
+    
+    # Load overrides from database
+    db_settings = await db.fetch_all("SELECT key, value FROM sys_config")
+    settings_map = {row["key"]: row["value"] for row in db_settings}
+    
+    return {
+        "app_name": config.app.name,
+        "version": config.app.version,
+        "retention_days": int(settings_map.get("retention_days", config.audit.retention_days)),
+        "dashboard_port": config.server.dashboard_port,
+        "environment": config.app.environment
+    }
+
+
+@router.post("/api/settings")
+async def update_settings(request: Request, data: Dict[str, Any]):
+    """Update dynamic settings in database"""
+    db = request.app.state.db
+    
+    for key, value in data.items():
+        await db.execute(
+            "INSERT OR REPLACE INTO sys_config (key, value) VALUES (?, ?)",
+            (key, str(value))
+        )
+    
+    return {"status": "success", "message": "Settings updated successfully"}
