@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Device Detail | NetVault{% endblock %}
+{% block page_title %}Device Detail{% endblock %}
+
+{% block content %}
+<div class="card"
+    style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+    <div>
+        <h3 id="device-title" style="margin: 0;">Device #{{ device_id }}</h3>
+        <p id="device-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted); font-size: 0.9rem;">Loading...</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
+        <button class="btn btn-outline" onclick="testDevice()"><i class="fas fa-network-wired"></i> Test</button>
+        <button class="btn btn-outline" onclick="refreshAllTabs()"><i class="fas fa-sync"></i> Refresh</button>
+        <button class="btn btn-outline" onclick="editDevice()"><i class="fas fa-edit"></i> Edit</button>
+        <button class="btn btn-outline" style="color: var(--danger);" onclick="deleteDevice()"><i
+                class="fas fa-trash"></i> Delete</button>
+    </div>
+</div>
+
+<div class="card" style="padding: 0;">
+    <div style="display: flex; border-bottom: 1px solid var(--border); overflow-x: auto;">
+        <button class="nav-item active" onclick="setTab('overview', this)">Overview</button>
+        <button class="nav-item" onclick="setTab('interfaces', this)">Interfaces</button>
+        <button class="nav-item" onclick="setTab('arp', this)">ARP Table</button>
+        <button class="nav-item" onclick="setTab('mac-table', this)">MAC Table</button>
+        <button class="nav-item" onclick="setTab('routes', this)">Routes</button>
+        <button class="nav-item" onclick="setTab('system', this)">System</button>
+    </div>
+
+    <div id="tab-overview" class="tab-pane" style="padding: 1rem;"></div>
+    <div id="tab-interfaces" class="tab-pane" style="display:none; padding: 1rem;"></div>
+    <div id="tab-arp" class="tab-pane" style="display:none; padding: 1rem;"></div>
+    <div id="tab-mac-table" class="tab-pane" style="display:none; padding: 1rem;"></div>
+    <div id="tab-routes" class="tab-pane" style="display:none; padding: 1rem;"></div>
+    <div id="tab-system" class="tab-pane" style="display:none; padding: 1rem;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const DEVICE_ID = {{ device_id }};
+
+    function noDataRow(colspan) {
+        return `<tr><td colspan="${colspan}" style="text-align:center; padding: 1.25rem; color: var(--text-muted);">No data available</td></tr>`;
+    }
+
+    function statusBadge(status) {
+        const up = String(status || '').toLowerCase() === 'up' || String(status || '').toLowerCase() === 'online';
+        return `<span class="status-badge" style="padding: 0.2rem 0.5rem; border-radius: 4px; background: ${up ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${up ? 'var(--success)' : 'var(--danger)'};">${status || 'unknown'}</span>`;
+    }
+
+    function setTab(tabId, btn) {
+        document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-${tabId}`).style.display = 'block';
+        btn.classList.add('active');
+    }
+
+    async function loadOverview() {
+        const [device, status] = await Promise.all([
+            fetchData(`/api/devices/${DEVICE_ID}`),
+            fetchData(`/api/devices/${DEVICE_ID}/status`)
+        ]);
+
+        if (device) {
+            document.getElementById('device-title').textContent = device.name || `Device #${DEVICE_ID}`;
+            document.getElementById('device-subtitle').textContent = `${device.ip || device.ip_address || 'Unknown IP'} • ${device.type || device.connector_type || 'unknown'}`;
+        }
+
+        const pane = document.getElementById('tab-overview');
+        if (!device) {
+            pane.innerHTML = '<p style="color: var(--text-muted);">No data available</p>';
+            return;
+        }
+
+        pane.innerHTML = `
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem;">
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Name</div><div>${device.name || '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">IP</div><div><code>${device.ip || device.ip_address || '-'}</code></div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Type</div><div>${device.type || '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Connector</div><div>${device.connector_type || '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Status</div><div>${statusBadge(status?.status || device.status)}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Last Connection</div><div>${status?.last_seen ? new Date(status.last_seen).toLocaleString() : 'Never'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Latency</div><div>${device.latency_ms || '-'} ms</div></div>
+            </div>
+        `;
+    }
+
+    function renderTableTab(paneId, rows, cols, rowBuilder) {
+        const pane = document.getElementById(paneId);
+        if (!rows || rows.length === 0) {
+            pane.innerHTML = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${noDataRow(cols.length)}</tbody></table>`;
+            return;
+        }
+
+        pane.innerHTML = `
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                    <tbody>${rows.map(rowBuilder).join('')}</tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    async function loadInterfaces() {
+        const data = await fetchData(`/api/devices/${DEVICE_ID}/interfaces`);
+        renderTableTab('tab-interfaces', data, ['Name', 'Status', 'Type', 'Speed', 'TX bytes', 'RX bytes'], (i) => `
+            <tr>
+                <td>${i.name || i.interface || '-'}</td>
+                <td>${statusBadge(i.status || i.state)}</td>
+                <td>${i.type || '-'}</td>
+                <td>${i.speed || i.speed_mbps || '-'}</td>
+                <td>${i.tx_bytes ?? i.tx ?? '-'}</td>
+                <td>${i.rx_bytes ?? i.rx ?? '-'}</td>
+            </tr>`);
+    }
+
+    async function loadArp() {
+        const data = await fetchData(`/api/devices/${DEVICE_ID}/arp`);
+        renderTableTab('tab-arp', data, ['IP', 'MAC', 'Interface', 'Type'], (r) => `
+            <tr><td>${r.ip || '-'}</td><td>${r.mac || '-'}</td><td>${r.interface || '-'}</td><td>${r.type || '-'}</td></tr>
+        `);
+    }
+
+    async function loadMacTable() {
+        const data = await fetchData(`/api/devices/${DEVICE_ID}/mac-table`);
+        renderTableTab('tab-mac-table', data, ['MAC', 'Port', 'VLAN', 'Type'], (r) => `
+            <tr><td>${r.mac || '-'}</td><td>${r.port || r.interface || '-'}</td><td>${r.vlan ?? '-'}</td><td>${r.type || '-'}</td></tr>
+        `);
+    }
+
+    async function loadRoutes() {
+        const data = await fetchData(`/api/devices/${DEVICE_ID}/routes`);
+        renderTableTab('tab-routes', data, ['Destination', 'Gateway', 'Metric', 'Protocol', 'Interface'], (r) => `
+            <tr><td>${r.destination || r.dst || '-'}</td><td>${r.gateway || '-'}</td><td>${r.metric ?? '-'}</td><td>${r.protocol || '-'}</td><td>${r.interface || '-'}</td></tr>
+        `);
+    }
+
+    async function loadSystem() {
+        const data = await fetchData(`/api/devices/${DEVICE_ID}/system`);
+        const pane = document.getElementById('tab-system');
+        if (!data || Object.keys(data).length === 0) {
+            pane.innerHTML = '<p style="color: var(--text-muted);">No data available</p>';
+            return;
+        }
+
+        pane.innerHTML = `
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem;">
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Model</div><div>${data.model || data.board_name || '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">OS Version</div><div>${data.os_version || data.version || '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Uptime</div><div>${data.uptime || '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">CPU</div><div>${data.cpu_usage ?? data.cpu_percent ?? '-'}%</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">RAM</div><div>${data.ram_used ?? data.memory_used ?? '-'} / ${data.ram_total ?? data.memory_total ?? '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Temperature</div><div>${data.temperature ?? data.temp ?? 'N/A'}</div></div>
+            </div>
+        `;
+    }
+
+    async function refreshAllTabs() {
+        await fetchData(`/api/devices/${DEVICE_ID}/refresh`, { method: 'POST' });
+        await Promise.all([
+            loadOverview(),
+            loadInterfaces(),
+            loadArp(),
+            loadMacTable(),
+            loadRoutes(),
+            loadSystem()
+        ]);
+    }
+
+    async function testDevice() {
+        const result = await fetchData(`/api/devices/${DEVICE_ID}/test`, { method: 'POST' });
+        if (result) {
+            alert(result.success ? `Test successful (${result.latency_ms} ms)` : `Test failed: ${result.error || 'Unknown error'}`);
+            await loadOverview();
+        }
+    }
+
+    function editDevice() {
+        window.location.href = `/devices?id=${DEVICE_ID}`;
+    }
+
+    async function deleteDevice() {
+        if (!confirm('Are you sure you want to delete this device?')) return;
+        const result = await fetchData(`/api/devices/${DEVICE_ID}`, { method: 'DELETE' });
+        if (result) {
+            window.location.href = '/devices';
+        }
+    }
+
+    async function refreshPageData() {
+        await refreshAllTabs();
+    }
+</script>
+{% endblock %}
