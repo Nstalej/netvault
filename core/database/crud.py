@@ -10,10 +10,19 @@ from datetime import datetime
 from core.database.db import DatabaseManager
 from core.database.models import (
     DeviceModel, AgentModel, AuditLogModel, 
-    AlertRuleModel, AlertModel, CredentialStoreModel
+    AlertRuleModel, AlertModel, CredentialStoreModel, DeviceStatus
 )
 
 logger = logging.getLogger("netvault.crud")
+
+
+def _normalize_device_status(status: Any) -> str:
+    if isinstance(status, DeviceStatus):
+        return status.value
+    try:
+        return DeviceStatus(str(status).lower()).value
+    except Exception:
+        return DeviceStatus.UNKNOWN.value
 
 # ─── Device CRUD ───
 
@@ -24,7 +33,7 @@ async def create_device(db: DatabaseManager, device: DeviceModel) -> int:
     """
     params = (
         device.name, device.type, device.ip, device.port, 
-        device.connector_type, json.dumps(device.config_json), device.status
+        device.connector_type, json.dumps(device.config_json), _normalize_device_status(device.status)
     )
     return await db.execute(query, params)
 
@@ -33,6 +42,7 @@ async def get_device(db: DatabaseManager, device_id: int) -> Optional[Dict[str, 
     if row:
         row = dict(row)
         row["config_json"] = json.loads(row["config_json"])
+        row["status"] = _normalize_device_status(row.get("status"))
     return row
 
 async def list_devices(db: DatabaseManager) -> List[Dict[str, Any]]:
@@ -41,12 +51,15 @@ async def list_devices(db: DatabaseManager) -> List[Dict[str, Any]]:
     for row in rows:
         d = dict(row)
         d["config_json"] = json.loads(d["config_json"])
+        d["status"] = _normalize_device_status(d.get("status"))
         result.append(d)
     return result
 
 async def update_device(db: DatabaseManager, device_id: int, data: Dict[str, Any]):
     if "config_json" in data:
         data["config_json"] = json.dumps(data["config_json"])
+    if "status" in data:
+        data["status"] = _normalize_device_status(data["status"])
     
     data["updated_at"] = datetime.now()
     
@@ -54,6 +67,25 @@ async def update_device(db: DatabaseManager, device_id: int, data: Dict[str, Any
     query = f"UPDATE devices SET {', '.join(keys)} WHERE id = ?"
     params = list(data.values()) + [device_id]
     await db.execute(query, tuple(params))
+
+async def update_device_status(
+    db: DatabaseManager,
+    device_id: int,
+    status: DeviceStatus | str,
+    last_seen: datetime | None = None,
+):
+    normalized_status = _normalize_device_status(status)
+    seen_at = last_seen or datetime.now()
+
+    current = await db.fetch_one("SELECT status FROM devices WHERE id = ?", (device_id,))
+    current_status = _normalize_device_status(current.get("status")) if current else DeviceStatus.UNKNOWN.value
+
+    update_data: Dict[str, Any] = {"status": normalized_status, "last_seen": seen_at}
+    if current_status != normalized_status:
+        update_data["last_status_change"] = seen_at
+
+    await update_device(db, device_id, update_data)
+
 
 async def delete_device(db: DatabaseManager, device_id: int):
     await db.execute("DELETE FROM devices WHERE id = ?", (device_id,))

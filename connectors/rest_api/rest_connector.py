@@ -32,15 +32,15 @@ class RESTConnector(BaseConnector):
         self.profile_type = credentials.get("rest_profile", "generic")
         self.port = credentials.get("port")
         self.protocol = credentials.get("protocol", "https")
-        self.verify_ssl = credentials.get("verify_ssl", False)
+        self.verify_ssl = credentials.get("verify_ssl", True)
         self.timeout = credentials.get("timeout", 15)
         self.max_retries = credentials.get("max_retries", 3)
         
         # Auth Config
-        self.auth_type = credentials.get("auth_type", "basic") # basic, bearer, api_key
+        self.auth_type = credentials.get("auth_type", "none") # none, basic, bearer, api_key
         self.api_key = credentials.get("api_key")
         self.api_key_location = credentials.get("api_key_location", "header") # header, query
-        self.api_key_name = credentials.get("api_key_name", "X-API-Key")
+        self.api_key_name = credentials.get("api_key_header") or credentials.get("api_key_name", "X-API-Key")
         
         self.client: Optional[httpx.AsyncClient] = None
         self.base_url = f"{self.protocol}://{self.device_ip}"

@@ -10,6 +10,7 @@ from typing import Dict, List, Any, Optional
 
 from core.database.db import DatabaseManager
 from core.database import crud
+from core.database.models import DeviceStatus
 from core.engine.credential_vault import CredentialVault
 from core.engine.logger import get_logger
 from connectors.base import get_connector, ConnectionTestResult
@@ -141,7 +142,7 @@ class DeviceManager:
             
             connector = await self.get_connector(device_id)
             if not connector:
-                await self._update_device_status(device_id, "offline")
+                await self._update_device_status(device_id, DeviceStatus.OFFLINE)
                 return
 
             try:
@@ -149,7 +150,7 @@ class DeviceManager:
                 connected = await connector.connect()
                 if not connected:
                     logger.warning(f"Failed to connect to {name} ({ip})")
-                    await self._update_device_status(device_id, "offline")
+                    await self._update_device_status(device_id, DeviceStatus.OFFLINE)
                     return
 
                 # 2. Collect basic data
@@ -167,9 +168,9 @@ class DeviceManager:
                 self._cache[device_id] = poll_data
                 
                 # 3. Update Status
-                status = "online"
+                status = DeviceStatus.ONLINE
                 if not interfaces:
-                    status = "warning" # Connected but failed to get interfaces
+                    status = DeviceStatus.WARNING  # Connected but failed to get interfaces
                 
                 await self._update_device_status(device_id, status)
                 
@@ -178,7 +179,7 @@ class DeviceManager:
 
             except Exception as e:
                 logger.exception(f"Unexpected error polling {name} ({ip}): {e}")
-                await self._update_device_status(device_id, "offline")
+                await self._update_device_status(device_id, DeviceStatus.OFFLINE)
             finally:
                 if connector.is_connected:
                     await connector.disconnect()
@@ -197,15 +198,23 @@ class DeviceManager:
             logger.info("All poll operations completed")
 
     async def test_device(self, device_id: int) -> ConnectionTestResult:
-        """Run test_connection() and return result."""
+        """Run test_connection(), persist status, and return result."""
         connector = await self.get_connector(device_id)
         if not connector:
-            return ConnectionTestResult(success=False, latency_ms=0, error_message="Could not initialize connector")
-        
+            result = ConnectionTestResult(success=False, latency_ms=0, error_message="Could not initialize connector")
+            await self._update_device_status(device_id, DeviceStatus.OFFLINE)
+            return result
+
         try:
             result = await connector.test_connection()
+            status = DeviceStatus.OFFLINE
+            if result.success:
+                status = DeviceStatus.WARNING if (result.latency_ms or 0) > 2000 else DeviceStatus.ONLINE
+
+            await self._update_device_status(device_id, status)
             return result
         except Exception as e:
+            await self._update_device_status(device_id, DeviceStatus.OFFLINE)
             return ConnectionTestResult(success=False, latency_ms=0, error_message=str(e))
 
     async def get_device_status(self, device_id: int) -> str:
@@ -217,8 +226,8 @@ class DeviceManager:
             if device:
                 self._devices[device_id] = device
             else:
-                return "unknown"
-        return device.get("status", "unknown")
+                return DeviceStatus.UNKNOWN.value
+        return device.get("status", DeviceStatus.UNKNOWN.value)
 
     async def get_device_data(self, device_id: int) -> Optional[Dict[str, Any]]:
         """Return cached data (system_info, interfaces, etc.)."""
@@ -252,7 +261,7 @@ class DeviceManager:
                 }
                 
                 self._cache[device_id] = data
-                await self._update_device_status(device_id, "online")
+                await self._update_device_status(device_id, DeviceStatus.ONLINE)
                 logger.info(f"Full data refresh completed for device {device_id}")
 
             except Exception as e:
@@ -261,19 +270,22 @@ class DeviceManager:
                 if connector.is_connected:
                     await connector.disconnect()
 
-    async def _update_device_status(self, device_id: int, status: str):
+    async def _update_device_status(self, device_id: int, status: DeviceStatus | str):
         """Update device status in cache and database."""
         now = datetime.now()
-        
+        status_value = status.value if isinstance(status, DeviceStatus) else DeviceStatus(str(status).lower()).value
+
         # Update cache
         if device_id in self._devices:
-            self._devices[device_id]["status"] = status
+            current_status = self._devices[device_id].get("status", DeviceStatus.UNKNOWN.value)
+            self._devices[device_id]["status"] = status_value
             self._devices[device_id]["last_seen"] = now
-            
+            if current_status != status_value:
+                self._devices[device_id]["last_status_change"] = now
+
         # Update DB
         try:
-            update_data = {"status": status, "last_seen": now}
-            await crud.update_device(self.db, device_id, update_data)
+            await crud.update_device_status(self.db, device_id, status_value, now)
         except Exception as e:
             logger.error(f"Failed to update device {device_id} status in DB: {e}")
 

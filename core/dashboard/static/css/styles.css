@@ -178,6 +178,21 @@ a:hover {
 .pulse { animation: pulse 2s infinite; }
 
 /* Grid and Cards */
+.badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: 99px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.status-online  { background: #22c55e; color: #fff; }
+.status-offline { background: #ef4444; color: #fff; }
+.status-warning { background: #f59e0b; color: #000; }
+.status-unknown { background: #6b7280; color: #fff; }
+
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

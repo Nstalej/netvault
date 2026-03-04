@@ -84,27 +84,36 @@ class CredentialVault:
         return cred_id
 
     async def get_credential(self, name: str) -> Optional[dict]:
-        """Fetch and decrypt a credential by its name"""
-        query = "SELECT encrypted_data FROM credential_store WHERE name = ?"
+        """Fetch and decrypt credential payload by name."""
+        record = await self.get_credential_record(name)
+        return record["data"] if record else None
+
+    async def get_credential_record(self, name: str) -> Optional[Dict[str, Any]]:
+        """Fetch credential metadata and decrypted payload by name."""
+        query = "SELECT name, type, encrypted_data FROM credential_store WHERE name = ?"
         row = await self.db.fetch_one(query, (name,))
-        
+
         if not row:
             logger.warning(f"Credential '{name}' not found")
             return None
-            
-        logger.info(f"Accessing credential: {name}")
-        return self._decrypt(row["encrypted_data"])
 
-    async def update_credential(self, name: str, data: dict):
-        """Update existing credential data"""
+        logger.info(f"Accessing credential: {name}")
+        return {
+            "name": row.get("name", name),
+            "type": row.get("type", "generic"),
+            "data": self._decrypt(row["encrypted_data"]),
+        }
+
+    async def update_credential(self, name: str, credential_type: str, data: dict):
+        """Update existing credential data."""
         encrypted_data = self._encrypt(data)
-        
+
         query = """
-        UPDATE credential_store 
-        SET encrypted_data = ?, updated_at = CURRENT_TIMESTAMP
+        UPDATE credential_store
+        SET type = ?, encrypted_data = ?, updated_at = CURRENT_TIMESTAMP
         WHERE name = ?
         """
-        await self.db.execute(query, (encrypted_data, name))
+        await self.db.execute(query, (credential_type, encrypted_data, name))
         logger.info(f"Credential '{name}' updated")
 
     async def delete_credential(self, name: str):
@@ -116,4 +125,25 @@ class CredentialVault:
         """List all stored credentials (metadata only)"""
         query = "SELECT id, name, type, created_at, updated_at FROM credential_store"
         rows = await self.db.fetch_all(query)
-        return [dict(row) for row in rows]
+        credentials = [dict(row) for row in rows]
+
+        devices = await self.db.fetch_all("SELECT config_json FROM devices")
+        usage_map: Dict[str, int] = {cred["name"]: 0 for cred in credentials}
+
+        for device in devices:
+            config_raw = device["config_json"]
+            if not config_raw:
+                continue
+            try:
+                config = json.loads(config_raw)
+            except (TypeError, json.JSONDecodeError):
+                continue
+
+            cred_name = config.get("credential_name")
+            if cred_name in usage_map:
+                usage_map[cred_name] += 1
+
+        for cred in credentials:
+            cred["usage_count"] = usage_map.get(cred["name"], 0)
+
+        return credentials

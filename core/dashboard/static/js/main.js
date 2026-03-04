@@ -17,6 +17,19 @@ async function fetchData(url, options = {}) {
     }
 }
 
+
+function renderDeviceStatus(status) {
+    const config = {
+        online: { label: 'Online', class: 'status-online', icon: '●' },
+        offline: { label: 'Offline', class: 'status-offline', icon: '●' },
+        warning: { label: 'Warning', class: 'status-warning', icon: '▲' },
+        unknown: { label: 'Unknown', class: 'status-unknown', icon: '?' }
+    };
+    const normalized = String(status || 'unknown').toLowerCase();
+    const s = config[normalized] || config.unknown;
+    return `<span class="badge ${s.class}">${s.icon} ${s.label}</span>`;
+}
+
 function updateLastRefreshed() {
     const el = document.getElementById('last-updated');
     if (el) {
