@@ -24,11 +24,39 @@
         border-left: 3px solid var(--accent) !important;
         border-radius: 0 6px 6px 0;
     }
+
+    .cred-field {
+        margin-bottom: 1rem;
+    }
+
+    .cred-label {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+    }
+
+    .field-error {
+        color: var(--danger);
+        font-size: 0.75rem;
+        margin-top: 0.35rem;
+        display: none;
+    }
+
+    .input-error {
+        border-color: var(--danger) !important;
+    }
+
+    .inline-option {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0.25rem 0;
+    }
 </style>
 <div style="display: flex; gap: 2rem;">
-    <!-- Sidebar Tabs -->
     <div style="width: 200px;">
-        <div class="card" style="padding: 0.5rem;">
+        <div class="card" style="padding: 0.5rem;" id="settings-nav">
             <button class="nav-item active"
                 style="width: 100%; border: none; background: transparent; text-align: left; cursor: pointer; border-left: 3px solid transparent;"
                 onclick="showTab('general', this)">
@@ -47,52 +75,41 @@
         </div>
     </div>
 
-    <!-- Tab Content -->
     <div style="flex: 1;">
-        <!-- General Settings -->
         <div id="tab-general" class="tab-content card">
             <h3>Application Configuration</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem;">
-                Core system settings. Some changes may require a service restart.
-            </p>
-
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem;">Core system settings. Some
+                changes may require a service restart.</p>
             <form id="settings-form" onsubmit="saveSettings(event)">
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Application Name <i
+                <div style="margin-bottom: 1.5rem;"><label
+                        style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Application Name <i
                             class="fas fa-lock" style="font-size: 0.75rem; color: var(--text-muted);"
-                            title="Requires admin authentication (coming in v0.2)"></i></label>
-                    <input type="text" id="app-name" value="{{ config.app.name }}" readonly disabled
+                            title="Requires admin authentication (coming in v0.2)"></i></label><input type="text"
+                        id="app-name" value="{{ config.app.name }}" readonly disabled
                         style="background: var(--bg-secondary); cursor: not-allowed; opacity: 0.7;"
-                        title="Requires admin authentication (coming in v0.2)">
-                </div>
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Dashboard Port <i
+                        title="Requires admin authentication (coming in v0.2)"></div>
+                <div style="margin-bottom: 1.5rem;"><label
+                        style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Dashboard Port <i
                             class="fas fa-lock" style="font-size: 0.75rem; color: var(--text-muted);"
-                            title="Requires admin authentication (coming in v0.2)"></i></label>
-                    <input type="number" id="app-port" value="{{ config.server.dashboard_port }}" readonly disabled
+                            title="Requires admin authentication (coming in v0.2)"></i></label><input type="number"
+                        id="app-port" value="{{ config.server.dashboard_port }}" readonly disabled
                         style="background: var(--bg-secondary); cursor: not-allowed; opacity: 0.7;"
-                        title="Requires admin authentication (coming in v0.2)">
-                </div>
-                <div style="margin-bottom: 1.5rem;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Data Retention
-                        (Days)</label>
-                    <input type="number" id="app-retention" value="30">
-                </div>
+                        title="Requires admin authentication (coming in v0.2)"></div>
+                <div style="margin-bottom: 1.5rem;"><label
+                        style="display: block; font-weight: 600; margin-bottom: 0.5rem;">Data Retention
+                        (Days)</label><input type="number" id="app-retention" value="30"></div>
                 <button type="submit" class="btn btn-primary">Save Changes</button>
             </form>
         </div>
 
-        <!-- Credentials -->
         <div id="tab-credentials" class="tab-content card" style="display: none;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                 <h3 style="margin: 0;">Credential Store</h3>
                 <button class="btn btn-outline" style="font-size: 0.8rem;" onclick="showAddCredModal()"><i
                         class="fas fa-plus"></i> Add Credential</button>
             </div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem;">
-                Encrypted credentials used for device discovery and auditing.
-            </p>
-
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem;">Encrypted credentials used for
+                device discovery and auditing.</p>
             <table>
                 <thead>
                     <tr>
@@ -111,7 +128,6 @@
             </table>
         </div>
 
-        <!-- Logs -->
         <div id="tab-logs" class="tab-content card" style="display: none; padding: 0;">
             <div
                 style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
@@ -120,50 +136,37 @@
                         class="fas fa-sync"></i> Refresh</button>
             </div>
             <div id="logs-container"
-                style="background: #000; color: #a3be8c; padding: 1rem; font-family: monospace; font-size: 0.8rem; height: 400px; overflow-y: auto;">
-                Initializing console log stream...
-            </div>
+                style="background: #000; color: #00ff66; font-family: monospace; padding: 1rem; white-space: pre-wrap; font-size: 0.8rem; height: 400px; overflow-y: auto;">
+                Initializing console log stream...</div>
         </div>
     </div>
 </div>
 
-<!-- Add Credential Modal -->
 <div id="cred-modal"
     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
-    <div class="card" style="width: 100%; max-width: 500px;">
-        <h3>Add Secure Credential</h3>
+    <div class="card" style="width: 100%; max-width: 560px;">
+        <h3 id="cred-modal-title">Add Secure Credential</h3>
         <form id="cred-form" onsubmit="saveCredential(event)">
-            <div style="margin-bottom: 1rem;">
-                <label
-                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Identifier
-                    (Name)</label>
-                <input type="text" id="cred-name" required placeholder="e.g. Core Switches SNMP">
+            <div class="cred-field">
+                <label class="cred-label">Identifier (Name)</label>
+                <input type="text" id="cred-name" required placeholder="e.g. Core Switches SSH">
+                <div class="field-error" id="error-cred-name"></div>
             </div>
-            <div style="margin-bottom: 1rem;">
-                <label
-                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Type</label>
-                <select id="cred-type">
-                    <option value="ssh">SSH Password</option>
-                    <option value="snmp_v2">SNMP v2c</option>
-                    <option value="api_key">API Key</option>
+            <div class="cred-field">
+                <label class="cred-label">Type</label>
+                <select id="cred-type" onchange="renderCredentialFields()">
+                    <option value="ssh">SSH</option>
+                    <option value="rest">REST</option>
+                    <option value="snmp_v2c">SNMP v2c</option>
+                    <option value="snmp_v3">SNMP v3</option>
                 </select>
             </div>
-            <div style="margin-bottom: 1rem;">
-                <label
-                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Username
-                    / Community</label>
-                <input type="text" id="cred-user" required placeholder="admin | public">
-            </div>
-            <div style="margin-bottom: 1rem;">
-                <label
-                    style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.25rem;">Password
-                    / Secret</label>
-                <input type="password" id="cred-pass" required>
-            </div>
+            <div id="cred-dynamic-fields"></div>
             <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
                 <button type="button" class="btn btn-outline" style="flex: 1;"
                     onclick="closeCredModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary" style="flex: 1;">Encrypt & Store</button>
+                <button type="submit" class="btn btn-primary" style="flex: 1;" id="cred-submit-btn">Encrypt &
+                    Store</button>
             </div>
         </form>
     </div>
@@ -172,67 +175,265 @@
 
 {% block scripts %}
 <script>
-    function showTab(tabId, btn) {
-        // Hide all
-        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.sidebar .nav-item').forEach(el => el.classList.remove('active'));
+    let editingCredentialName = null;
+    let maskedFieldNames = [];
 
-        // Show target
+    function showTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('#settings-nav .nav-item').forEach(el => el.classList.remove('active'));
         document.getElementById(`tab-${tabId}`).style.display = 'block';
         btn.classList.add('active');
-
         if (tabId === 'credentials') loadCredentials();
         if (tabId === 'logs') refreshLogs();
     }
 
     async function loadCredentials() {
-        const creds = await fetchData('/api/credentials/');
+        const creds = await fetchData('/api/credentials');
         const body = document.getElementById('creds-body');
         if (!creds) return;
 
-        body.innerHTML = creds.length === 0 ?
-            '<tr><td colspan="4" style="text-align:center; padding: 2rem;">No credentials stored.</td></tr>' :
-            creds.map(c => `
+        body.innerHTML = creds.length === 0
+            ? '<tr><td colspan="4" style="text-align:center; padding: 2rem;">No credentials stored.</td></tr>'
+            : creds.map(c => `
                 <tr>
                     <td><strong>${c.name}</strong></td>
                     <td><code>${c.type || 'generic'}</code></td>
                     <td style="font-size: 0.8rem; color: var(--text-muted);">${c.usage_count || 0} devices</td>
-                    <td>
+                    <td style="display:flex; gap:0.5rem;">
+                        <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="editCred('${c.name}')"><i class="fas fa-edit"></i> Edit</button>
                         <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" onclick="deleteCred('${c.name}')"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>
             `).join('');
     }
 
-    async function saveSettings(e) {
-        e.preventDefault();
-        alert('Settings saved. Some changes will apply after restart.');
+    function showAddCredModal() {
+        editingCredentialName = null;
+        maskedFieldNames = [];
+        document.getElementById('cred-form').reset();
+        document.getElementById('cred-modal-title').textContent = 'Add Secure Credential';
+        document.getElementById('cred-submit-btn').textContent = 'Encrypt & Store';
+        document.getElementById('cred-name').disabled = false;
+        renderCredentialFields('ssh');
+        document.getElementById('cred-modal').style.display = 'flex';
     }
 
-    function showAddCredModal() {
+    async function editCred(name) {
+        const cred = await fetchData(`/api/credentials/${name}`);
+        if (!cred) return;
+
+        editingCredentialName = name;
+        maskedFieldNames = cred.masked_fields || [];
+        document.getElementById('cred-modal-title').textContent = `Edit Credential: ${name}`;
+        document.getElementById('cred-submit-btn').textContent = 'Update';
+        document.getElementById('cred-name').value = name;
+        document.getElementById('cred-name').disabled = true;
+        document.getElementById('cred-type').value = cred.type;
+        renderCredentialFields(cred.type, cred.data || {});
         document.getElementById('cred-modal').style.display = 'flex';
     }
 
     function closeCredModal() {
         document.getElementById('cred-modal').style.display = 'none';
         document.getElementById('cred-form').reset();
+        clearValidationErrors();
+    }
+
+    function createInputField({ id, label, type = 'text', required = false, placeholder = '', value = '', min = null, checked = false }) {
+        const requiredAttr = required ? 'data-required="true"' : '';
+        const minAttr = min !== null ? `min="${min}"` : '';
+        const checkedAttr = type === 'checkbox' && checked ? 'checked' : '';
+        const valueAttr = type !== 'checkbox' ? `value="${value ?? ''}"` : '';
+        return `
+            <div class="cred-field">
+                <label class="cred-label">${label}</label>
+                <input type="${type}" id="${id}" data-cred-field="true" ${requiredAttr} ${minAttr} ${checkedAttr} ${valueAttr} placeholder="${placeholder}">
+                <div class="field-error" id="error-${id}"></div>
+            </div>
+        `;
+    }
+
+    function createSelectField({ id, label, options, value = '', required = false, onchange = '' }) {
+        const requiredAttr = required ? 'data-required="true"' : '';
+        const onchangeAttr = onchange ? `onchange="${onchange}"` : '';
+        return `
+            <div class="cred-field">
+                <label class="cred-label">${label}</label>
+                <select id="${id}" data-cred-field="true" ${requiredAttr} ${onchangeAttr}>
+                    ${options.map(opt => `<option value="${opt.value}" ${value === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                </select>
+                <div class="field-error" id="error-${id}"></div>
+            </div>
+        `;
+    }
+
+    function renderCredentialFields(typeOverride = null, values = {}) {
+        const type = typeOverride || document.getElementById('cred-type').value;
+        document.getElementById('cred-type').value = type;
+        const container = document.getElementById('cred-dynamic-fields');
+        let html = '';
+
+        if (type === 'snmp_v2c') {
+            html += createInputField({ id: 'cred-community', label: 'Community', required: true, value: values.community || '' });
+        }
+
+        if (type === 'snmp_v3') {
+            html += createInputField({ id: 'cred-username', label: 'Username', required: true, value: values.username || '' });
+            html += createSelectField({ id: 'cred-auth-protocol', label: 'Auth Protocol', required: true, value: values.auth_protocol || 'SHA', options: [{ value: 'MD5', label: 'MD5' }, { value: 'SHA', label: 'SHA' }] });
+            html += createInputField({ id: 'cred-auth-password', label: 'Auth Password', type: 'password', required: true, value: '••••••••' });
+            html += createSelectField({ id: 'cred-priv-protocol', label: 'Priv Protocol', value: values.priv_protocol || '', options: [{ value: '', label: 'None' }, { value: 'DES', label: 'DES' }, { value: 'AES', label: 'AES' }] });
+            html += createInputField({ id: 'cred-priv-password', label: 'Priv Password', type: 'password', value: values.priv_password ? '••••••••' : '' });
+        }
+
+        if (type === 'ssh') {
+            const authMethod = values.key_filename ? 'key' : 'password';
+            html += createInputField({ id: 'cred-username', label: 'Username', required: true, value: values.username || '' });
+            html += `<div class="cred-field"><label class="cred-label">Authentication Method</label>
+                <label class="inline-option"><input type="radio" name="ssh-auth-method" value="password" ${authMethod === 'password' ? 'checked' : ''} onchange="renderCredentialFields('${type}', collectCurrentFieldValues())"> Password</label>
+                <label class="inline-option"><input type="radio" name="ssh-auth-method" value="key" ${authMethod === 'key' ? 'checked' : ''} onchange="renderCredentialFields('${type}', collectCurrentFieldValues())"> Key File</label>
+            </div>`;
+            if (authMethod === 'password') {
+                html += createInputField({ id: 'cred-password', label: 'Password', type: 'password', required: true, value: values.password ? '••••••••' : '' });
+            } else {
+                html += createInputField({ id: 'cred-key-filename', label: 'Key File Path', required: true, value: values.key_filename || '' });
+            }
+            html += createInputField({ id: 'cred-port', label: 'Port', type: 'number', value: values.port ?? 22, min: 1 });
+            html += createInputField({ id: 'cred-timeout', label: 'Timeout (seconds)', type: 'number', value: values.timeout ?? 10, min: 1 });
+            html += createSelectField({ id: 'cred-device-type', label: 'Device Type', value: values.device_type || 'auto', options: [{ value: 'auto', label: 'auto' }, { value: 'mikrotik', label: 'mikrotik' }, { value: 'cisco', label: 'cisco' }, { value: 'generic', label: 'generic' }] });
+        }
+
+        if (type === 'rest') {
+            const authType = values.auth_type || 'bearer';
+            html += createSelectField({ id: 'cred-protocol', label: 'Protocol', value: values.protocol || 'https', options: [{ value: 'https', label: 'https' }, { value: 'http', label: 'http' }] });
+            html += createInputField({ id: 'cred-port', label: 'Port', type: 'number', value: values.port ?? 443, min: 1 });
+            html += createSelectField({ id: 'cred-auth-type', label: 'Auth Type', required: true, value: authType, onchange: "renderCredentialFields('rest', collectCurrentFieldValues())", options: [{ value: 'bearer', label: 'bearer' }, { value: 'api_key', label: 'api_key' }, { value: 'basic', label: 'basic' }, { value: 'none', label: 'none' }] });
+            if (authType === 'bearer') {
+                html += createInputField({ id: 'cred-token', label: 'Token', type: 'password', required: true, value: values.token ? '••••••••' : '' });
+            } else if (authType === 'api_key') {
+                html += createInputField({ id: 'cred-api-key', label: 'API Key', type: 'password', required: true, value: values.api_key ? '••••••••' : '' });
+                html += createInputField({ id: 'cred-api-key-header', label: 'API Key Header', value: values.api_key_header || values.api_key_name || 'X-API-Key' });
+            } else if (authType === 'basic') {
+                html += createInputField({ id: 'cred-username', label: 'Username', required: true, value: values.username || '' });
+                html += createInputField({ id: 'cred-password', label: 'Password', type: 'password', required: true, value: values.password ? '••••••••' : '' });
+            }
+            html += `<div class="cred-field"><label class="inline-option"><input type="checkbox" id="cred-verify-ssl" data-cred-field="true" ${(values.verify_ssl ?? true) ? 'checked' : ''}> Verify SSL</label><div class="field-error" id="error-cred-verify-ssl"></div></div>`;
+            html += createInputField({ id: 'cred-max-retries', label: 'Max Retries', type: 'number', value: values.max_retries ?? 3, min: 0 });
+        }
+
+        container.innerHTML = html;
+        applyMaskMarkers();
+    }
+
+    function collectCurrentFieldValues() {
+        const data = {};
+        const authMethod = document.querySelector('input[name="ssh-auth-method"]:checked');
+        if (authMethod) data.ssh_auth_method = authMethod.value;
+
+        const mapping = {
+            'cred-community': 'community', 'cred-username': 'username', 'cred-password': 'password', 'cred-key-filename': 'key_filename',
+            'cred-port': 'port', 'cred-timeout': 'timeout', 'cred-device-type': 'device_type', 'cred-auth-protocol': 'auth_protocol',
+            'cred-auth-password': 'auth_password', 'cred-priv-protocol': 'priv_protocol', 'cred-priv-password': 'priv_password',
+            'cred-protocol': 'protocol', 'cred-auth-type': 'auth_type', 'cred-token': 'token', 'cred-api-key': 'api_key',
+            'cred-api-key-header': 'api_key_header', 'cred-max-retries': 'max_retries'
+        };
+
+        Object.entries(mapping).forEach(([id, key]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            data[key] = el.type === 'number' ? Number(el.value) : el.value;
+        });
+
+        const verify = document.getElementById('cred-verify-ssl');
+        if (verify) data.verify_ssl = verify.checked;
+        return data;
+    }
+
+    function applyMaskMarkers() {
+        maskedFieldNames.forEach(fieldName => {
+            const fieldMap = {
+                password: 'cred-password', token: 'cred-token', api_key: 'cred-api-key', auth_password: 'cred-auth-password', priv_password: 'cred-priv-password'
+            };
+            const input = document.getElementById(fieldMap[fieldName]);
+            if (input && input.value === '••••••••') input.dataset.masked = 'true';
+        });
+    }
+
+    function clearValidationErrors() {
+        document.querySelectorAll('#cred-form .field-error').forEach(el => {
+            el.style.display = 'none';
+            el.textContent = '';
+        });
+        document.querySelectorAll('#cred-form input, #cred-form select').forEach(el => el.classList.remove('input-error'));
+    }
+
+    function setFieldError(inputId, message) {
+        const input = document.getElementById(inputId);
+        const error = document.getElementById(`error-${inputId}`);
+        if (input) input.classList.add('input-error');
+        if (error) {
+            error.style.display = 'block';
+            error.textContent = message;
+        }
+    }
+
+    function validateCredentialForm(type, payload) {
+        clearValidationErrors();
+        let valid = true;
+        const fail = (id, msg) => { setFieldError(id, msg); valid = false; };
+
+        if (!document.getElementById('cred-name').value.trim()) fail('cred-name', 'Identifier es requerido');
+
+        if (type === 'ssh') {
+            if (!payload.username?.trim()) fail('cred-username', 'Username es requerido');
+            if (!payload.password && !payload.key_filename) {
+                const usingPassword = !!document.getElementById('cred-password');
+                fail(usingPassword ? 'cred-password' : 'cred-key-filename', 'Password o Key File es requerido');
+            }
+        }
+
+        if (type === 'snmp_v2c' && !payload.community?.trim()) fail('cred-community', 'Community es requerido');
+
+        if (type === 'snmp_v3') {
+            if (!payload.username?.trim()) fail('cred-username', 'Username es requerido');
+            if (!payload.auth_password) fail('cred-auth-password', 'Auth Password es requerido');
+        }
+
+        if (type === 'rest') {
+            if (!payload.auth_type) fail('cred-auth-type', 'Auth type es requerido');
+            if (payload.auth_type === 'bearer' && !payload.token) fail('cred-token', 'Token es requerido');
+            if (payload.auth_type === 'api_key' && !payload.api_key) fail('cred-api-key', 'API key es requerido');
+            if (payload.auth_type === 'basic') {
+                if (!payload.username?.trim()) fail('cred-username', 'Username es requerido');
+                if (!payload.password) fail('cred-password', 'Password es requerido');
+            }
+        }
+
+        return valid;
     }
 
     async function saveCredential(e) {
         e.preventDefault();
-        const data = {
-            name: document.getElementById('cred-name').value,
-            type: document.getElementById('cred-type').value,
-            data: {
-                username: document.getElementById('cred-user').value,
-                password: document.getElementById('cred-pass').value
-            }
-        };
+        const type = document.getElementById('cred-type').value;
+        const payload = collectCurrentFieldValues();
 
-        const res = await fetchData('/api/credentials/', {
-            method: 'POST',
+        const maskPairs = [
+            ['password', 'cred-password'], ['token', 'cred-token'], ['api_key', 'cred-api-key'], ['auth_password', 'cred-auth-password'], ['priv_password', 'cred-priv-password']
+        ];
+        maskPairs.forEach(([key, id]) => {
+            const input = document.getElementById(id);
+            if (input && input.dataset.masked === 'true' && input.value === '••••••••') delete payload[key];
+        });
+
+        if (!validateCredentialForm(type, payload)) return;
+
+        const body = { name: document.getElementById('cred-name').value.trim(), type, data: payload };
+        const endpoint = editingCredentialName ? `/api/credentials/${editingCredentialName}` : '/api/credentials';
+        const method = editingCredentialName ? 'PUT' : 'POST';
+
+        const res = await fetchData(endpoint, {
+            method,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            body: JSON.stringify(body)
         });
 
         if (res) {
@@ -245,6 +446,11 @@
         if (!confirm('Permanently remove this credential? Devices using it will fail to connect.')) return;
         const res = await fetchData(`/api/credentials/${name}`, { method: 'DELETE' });
         if (res) loadCredentials();
+    }
+
+    async function saveSettings(e) {
+        e.preventDefault();
+        alert('Settings saved. Some changes will apply after restart.');
     }
 
     function refreshLogs() {

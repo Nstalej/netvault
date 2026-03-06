@@ -129,13 +129,10 @@
                     <td><strong>${d.name}</strong></td>
                     <td><code>${d.ip || d.ip_address}</code></td>
                     <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${d.connector_type || d.type}</span></td>
-                    <td>
-                        <span class="status-badge ${d.status === 'up' ? 'online' : ''}" style="padding: 0.2rem 0.5rem; background: ${d.status === 'up' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${d.status === 'up' ? 'var(--success)' : 'var(--danger)'}; border: 1px solid ${d.status === 'up' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'};">
-                            ${(d.status || 'unknown').toUpperCase()}
-                        </span>
-                    </td>
+                    <td>${renderDeviceStatus(d.status)}</td>
                     <td style="font-size: 0.8rem; color: var(--text-muted);">${d.last_seen ? new Date(d.last_seen).toLocaleString() : 'Never'}</td>
                     <td style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" title="Details" onclick="openDetails(${d.id})"><i class="fas fa-eye"></i></button>
                         <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" title="Test" onclick="testDevice(${d.id})"><i class="fas fa-network-wired"></i></button>
                         <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" title="Edit" onclick="editDevice(${d.id})"><i class="fas fa-edit"></i></button>
                         <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" title="Delete" onclick="deleteDevice(${d.id})"><i class="fas fa-trash"></i></button>
@@ -160,6 +157,10 @@
         }
 
         document.getElementById('add-modal').style.display = 'flex';
+    }
+
+    function openDetails(id) {
+        window.location.href = `/devices/${id}`;
     }
 
     function closeModal() {
@@ -252,5 +253,13 @@
             tr[i].style.display = rowText.indexOf(filter) > -1 ? '' : 'none';
         }
     }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const params = new URLSearchParams(window.location.search);
+        const editId = params.get('id');
+        if (editId) {
+            await editDevice(editId);
+        }
+    });
 </script>
 {% endblock %}

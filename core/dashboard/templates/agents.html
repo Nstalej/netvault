@@ -19,11 +19,12 @@
                         <th>Type</th>
                         <th>Status</th>
                         <th>Last Heartbeat</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="agents-body">
                     <tr>
-                        <td colspan="5" style="text-align:center; padding: 2rem; color: var(--text-muted);">No agents
+                        <td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No agents
                             registered</td>
                     </tr>
                 </tbody>
@@ -107,15 +108,40 @@
             icon.style.color = '';
         }, 1500);
     }
+    function calculateAgentStatus(lastHeartbeat) {
+        if (!lastHeartbeat) {
+            return { label: 'inactive', color: 'var(--danger)', bg: 'rgba(248, 113, 113, 0.1)' };
+        }
+
+        const heartbeatDate = new Date(lastHeartbeat);
+        const ageMs = Date.now() - heartbeatDate.getTime();
+
+        if (ageMs > 5 * 60 * 1000) {
+            return { label: 'stale', color: 'var(--warning)', bg: 'rgba(250, 204, 21, 0.1)' };
+        }
+
+        return { label: 'active', color: 'var(--success)', bg: 'rgba(74, 222, 128, 0.1)' };
+    }
+
     async function refreshPageData() {
         const agents = await fetchData('/api/agents/');
         const body = document.getElementById('agents-body');
 
         if (!agents) return;
 
-        body.innerHTML = agents.length === 0 ?
-            '<tr><td colspan="5" style="text-align:center; padding: 2rem;">No agents registered.</td></tr>' :
-            agents.map(a => `
+        const agentsWithStatus = await Promise.all(agents.map(async (agent) => {
+            const statusData = await fetchData(`/api/agents/${agent.id}/status`);
+            const heartbeat = statusData?.last_heartbeat || agent.last_heartbeat;
+            return {
+                ...agent,
+                last_heartbeat: heartbeat,
+                computed: calculateAgentStatus(heartbeat)
+            };
+        }));
+
+        body.innerHTML = agentsWithStatus.length === 0 ?
+            '<tr><td colspan="6" style="text-align:center; padding: 2rem;">No agents registered.</td></tr>' :
+            agentsWithStatus.map(a => `
                 <tr style="cursor: pointer;" onclick="loadAgentAudit(${a.id}, '${a.type}')">
                     <td><strong>${a.name}</strong></td>
                     <td>
@@ -124,13 +150,30 @@
                     </td>
                     <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${a.type}</span></td>
                     <td>
-                        <span class="status-badge ${a.status === 'online' ? 'online' : ''}" style="padding: 0.2rem 0.5rem; background: ${a.status === 'online' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${a.status === 'online' ? 'var(--success)' : 'var(--danger)'}; border: 1px solid ${a.status === 'online' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'};">
-                            ${a.status.toUpperCase()}
+                        <span class="status-badge" style="padding: 0.2rem 0.5rem; background: ${a.computed.bg}; color: ${a.computed.color}; border: 1px solid ${a.computed.bg};">
+                            ${a.computed.label.toUpperCase()}
                         </span>
                     </td>
                     <td style="font-size: 0.8rem; color: var(--text-muted);">${a.last_heartbeat ? new Date(a.last_heartbeat).toLocaleString() : 'Never'}</td>
+                    <td>
+                        <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" onclick='removeAgent(event, ${a.id}, ${JSON.stringify(a.name || "agent")})'>
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
+                    </td>
                 </tr>
             `).join('');
+    }
+
+    async function removeAgent(event, agentId, agentName) {
+        event.stopPropagation();
+        if (!confirm(`¿Eliminar agente ${agentName}? Esta acción no se puede deshacer.`)) {
+            return;
+        }
+
+        const result = await fetchData(`/api/agents/${agentId}`, { method: 'DELETE' });
+        if (result) {
+            refreshData();
+        }
     }
 
     async function loadAgentAudit(agentId, type) {

@@ -4,6 +4,7 @@ Unit tests for NetVault Credential Vault
 import pytest
 import os
 import asyncio
+import json
 from unittest.mock import MagicMock, AsyncMock
 from core.engine.credential_vault import CredentialVault
 

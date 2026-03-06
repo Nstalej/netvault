@@ -35,6 +35,23 @@ async def get_devices_page(request: Request, templates=Depends(get_templates)):
         "environment": config.app.environment
     })
 
+@router.get("/devices/{device_id}", response_class=HTMLResponse)
+@router.get("/dashboard/devices/{device_id}", response_class=HTMLResponse)
+async def get_device_detail_page(
+    device_id: int,
+    request: Request,
+    templates=Depends(get_templates)
+):
+    """Serve the per-device operational data page"""
+    config = request.app.state.config
+    return templates.TemplateResponse("device_detail.html", {
+        "request": request,
+        "active_page": "devices",
+        "device_id": device_id,
+        "version": config.app.version,
+        "environment": config.app.environment
+    })
+
 @router.get("/agents", response_class=HTMLResponse)
 async def get_agents_page(request: Request, templates=Depends(get_templates)):
     """Serve the remote agents page"""
