@@ -42,13 +42,25 @@
 <script>
     const DEVICE_ID = {{ device_id }};
 
+    function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = String(str ?? '');
+        return d.innerHTML;
+    }
+
     function noDataRow(colspan) {
         return `<tr><td colspan="${colspan}" style="text-align:center; padding: 1.25rem; color: var(--text-muted);">No data available</td></tr>`;
     }
 
+    function showTabError(paneId, message) {
+        const pane = document.getElementById(paneId);
+        if (pane) pane.innerHTML = `<p style="color: var(--danger); padding: 1rem;"><i class="fas fa-exclamation-triangle"></i> ${esc(message)}</p>`;
+    }
+
     function statusBadge(status) {
+        const s = esc(status || 'unknown');
         const up = String(status || '').toLowerCase() === 'up' || String(status || '').toLowerCase() === 'online';
-        return `<span class="status-badge" style="padding: 0.2rem 0.5rem; border-radius: 4px; background: ${up ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${up ? 'var(--success)' : 'var(--danger)'};">${status || 'unknown'}</span>`;
+        return `<span class="status-badge" style="padding: 0.2rem 0.5rem; border-radius: 4px; background: ${up ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${up ? 'var(--success)' : 'var(--danger)'};">${s}</span>`;
     }
 
     function setTab(tabId, btn) {
@@ -71,19 +83,19 @@
 
         const pane = document.getElementById('tab-overview');
         if (!device) {
-            pane.innerHTML = '<p style="color: var(--text-muted);">No data available</p>';
+            showTabError('tab-overview', 'Could not load device data. Please try refreshing.');
             return;
         }
 
         pane.innerHTML = `
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem;">
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Name</div><div>${device.name || '-'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">IP</div><div><code>${device.ip || device.ip_address || '-'}</code></div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Type</div><div>${device.type || '-'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Connector</div><div>${device.connector_type || '-'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Name</div><div>${esc(device.name || '-')}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">IP</div><div><code>${esc(device.ip || device.ip_address || '-')}</code></div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Type</div><div>${esc(device.type || '-')}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Connector</div><div>${esc(device.connector_type || '-')}</div></div>
                 <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Status</div><div>${statusBadge(status?.status || device.status)}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Last Connection</div><div>${status?.last_seen ? new Date(status.last_seen).toLocaleString() : 'Never'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Latency</div><div>${device.latency_ms || '-'} ms</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Last Connection</div><div>${status?.last_seen ? esc(new Date(status.last_seen).toLocaleString()) : 'Never'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Latency</div><div>${esc(device.latency_ms || '-')} ms</div></div>
             </div>
         `;
     }
@@ -107,60 +119,64 @@
 
     async function loadInterfaces() {
         const data = await fetchData(`/api/devices/${DEVICE_ID}/interfaces`);
+        if (data === null) { showTabError('tab-interfaces', 'Failed to load interfaces'); return; }
         renderTableTab('tab-interfaces', data, ['Name', 'Status', 'Type', 'Speed', 'TX bytes', 'RX bytes'], (i) => `
             <tr>
-                <td>${i.name || i.interface || '-'}</td>
+                <td>${esc(i.name || i.interface || '-')}</td>
                 <td>${statusBadge(i.status || i.state)}</td>
-                <td>${i.type || '-'}</td>
-                <td>${i.speed || i.speed_mbps || '-'}</td>
-                <td>${i.tx_bytes ?? i.tx ?? '-'}</td>
-                <td>${i.rx_bytes ?? i.rx ?? '-'}</td>
+                <td>${esc(i.type || '-')}</td>
+                <td>${esc(i.speed || i.speed_mbps || '-')}</td>
+                <td>${esc(i.tx_bytes ?? i.tx ?? '-')}</td>
+                <td>${esc(i.rx_bytes ?? i.rx ?? '-')}</td>
             </tr>`);
     }
 
     async function loadArp() {
         const data = await fetchData(`/api/devices/${DEVICE_ID}/arp`);
+        if (data === null) { showTabError('tab-arp', 'Failed to load ARP table'); return; }
         renderTableTab('tab-arp', data, ['IP', 'MAC', 'Interface', 'Type'], (r) => `
-            <tr><td>${r.ip || '-'}</td><td>${r.mac || '-'}</td><td>${r.interface || '-'}</td><td>${r.type || '-'}</td></tr>
+            <tr><td>${esc(r.ip || '-')}</td><td>${esc(r.mac || '-')}</td><td>${esc(r.interface || '-')}</td><td>${esc(r.type || '-')}</td></tr>
         `);
     }
 
     async function loadMacTable() {
         const data = await fetchData(`/api/devices/${DEVICE_ID}/mac-table`);
+        if (data === null) { showTabError('tab-mac-table', 'Failed to load MAC table'); return; }
         renderTableTab('tab-mac-table', data, ['MAC', 'Port', 'VLAN', 'Type'], (r) => `
-            <tr><td>${r.mac || '-'}</td><td>${r.port || r.interface || '-'}</td><td>${r.vlan ?? '-'}</td><td>${r.type || '-'}</td></tr>
+            <tr><td>${esc(r.mac || '-')}</td><td>${esc(r.port || r.interface || '-')}</td><td>${esc(r.vlan ?? '-')}</td><td>${esc(r.type || '-')}</td></tr>
         `);
     }
 
     async function loadRoutes() {
         const data = await fetchData(`/api/devices/${DEVICE_ID}/routes`);
+        if (data === null) { showTabError('tab-routes', 'Failed to load routes'); return; }
         renderTableTab('tab-routes', data, ['Destination', 'Gateway', 'Metric', 'Protocol', 'Interface'], (r) => `
-            <tr><td>${r.destination || r.dst || '-'}</td><td>${r.gateway || '-'}</td><td>${r.metric ?? '-'}</td><td>${r.protocol || '-'}</td><td>${r.interface || '-'}</td></tr>
+            <tr><td>${esc(r.destination || r.dst || '-')}</td><td>${esc(r.gateway || '-')}</td><td>${esc(r.metric ?? '-')}</td><td>${esc(r.protocol || '-')}</td><td>${esc(r.interface || '-')}</td></tr>
         `);
     }
 
     async function loadSystem() {
         const data = await fetchData(`/api/devices/${DEVICE_ID}/system`);
         const pane = document.getElementById('tab-system');
-        if (!data || Object.keys(data).length === 0) {
+        if (data === null) { showTabError('tab-system', 'Failed to load system info'); return; }
+        if (Object.keys(data).length === 0) {
             pane.innerHTML = '<p style="color: var(--text-muted);">No data available</p>';
             return;
         }
 
         pane.innerHTML = `
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem;">
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Model</div><div>${data.model || data.board_name || '-'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">OS Version</div><div>${data.os_version || data.version || '-'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Uptime</div><div>${data.uptime || '-'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">CPU</div><div>${data.cpu_usage ?? data.cpu_percent ?? '-'}%</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">RAM</div><div>${data.ram_used ?? data.memory_used ?? '-'} / ${data.ram_total ?? data.memory_total ?? '-'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Temperature</div><div>${data.temperature ?? data.temp ?? 'N/A'}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Model</div><div>${esc(data.model || data.board_name || '-')}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">OS Version</div><div>${esc(data.os_version || data.version || '-')}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Uptime</div><div>${esc(data.uptime || '-')}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">CPU</div><div>${esc(data.cpu_usage ?? data.cpu_percent ?? '-')}%</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">RAM</div><div>${esc(data.ram_used ?? data.memory_used ?? '-')} / ${esc(data.ram_total ?? data.memory_total ?? '-')}</div></div>
+                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Temperature</div><div>${esc(data.temperature ?? data.temp ?? 'N/A')}</div></div>
             </div>
         `;
     }
 
-    async function refreshAllTabs() {
-        await fetchData(`/api/devices/${DEVICE_ID}/refresh`, { method: 'POST' });
+    async function loadAllTabs() {
         await Promise.all([
             loadOverview(),
             loadInterfaces(),
@@ -169,6 +185,11 @@
             loadRoutes(),
             loadSystem()
         ]);
+    }
+
+    async function refreshAllTabs() {
+        await fetchData(`/api/devices/${DEVICE_ID}/refresh`, { method: 'POST' });
+        await loadAllTabs();
     }
 
     async function testDevice() {
@@ -192,7 +213,7 @@
     }
 
     async function refreshPageData() {
-        await refreshAllTabs();
+        await loadAllTabs();
     }
 </script>
 {% endblock %}
