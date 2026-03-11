@@ -93,6 +93,13 @@
         </div>
     </section>
 </div>
+
+<section class="card" style="margin-top: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <h3 style="margin: 0;">Network Topology</h3>
+    </div>
+    <div id="topology-container" style="color: var(--text-muted);">Loading topology...</div>
+</section>
 {% endblock %}
 
 {% block scripts %}
@@ -112,13 +119,9 @@
                         <td><strong>${d.name}</strong></td>
                         <td style="text-transform: capitalize;">${(d.type || d.connector_type).replace('_', ' ')}</td>
                         <td><code>${d.ip || d.ip_address}</code></td>
+                        <td>${renderDeviceStatus(d.status)}</td>
                         <td>
-                            <span class="status-badge ${d.status === 'up' ? 'online' : ''}" style="padding: 0.2rem 0.5rem; background: ${d.status === 'up' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${d.status === 'up' ? 'var(--success)' : 'var(--danger)'}; border: 1px solid ${d.status === 'up' ? 'rgba(74, 222, 128, 0.2)' : 'rgba(248, 113, 113, 0.2)'};">
-                                ${d.status ? d.status.toUpperCase() : 'UNKNOWN'}
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="location.href='/devices?id=${d.id}'">Details</button>
+                            <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" onclick="location.href='/devices/${d.id}'">Details</button>
                         </td>
                     </tr>
                 `).join('');
@@ -127,7 +130,7 @@
             let offline = 0;
             let unknown = 0;
             devices.forEach(d => {
-                if (d.status === 'offline' || d.status === 'down') offline++;
+                if (d.status === 'offline') offline++;
                 else if (d.status === 'unknown') unknown++;
             });
 
@@ -198,6 +201,31 @@
                 document.getElementById('last-audit-time').textContent = `Last run: ${new Date(latest.completed_at).toLocaleTimeString()}`;
             }
         }
+
+        // 5. Basic Topology
+        const topology = await fetchData('/api/network/topology');
+        const topologyContainer = document.getElementById('topology-container');
+        if (!topology || !topology.nodes || topology.nodes.length === 0) {
+            topologyContainer.innerHTML = '<p style="color: var(--text-muted);">Network Topology — Coming Soon</p>';
+            return;
+        }
+
+        const subnetGroups = {};
+        topology.nodes.forEach(node => {
+            const ip = node.ip || 'unknown';
+            const subnet = ip.includes('.') ? ip.split('.').slice(0, 3).join('.') + '.0/24' : 'unknown subnet';
+            if (!subnetGroups[subnet]) subnetGroups[subnet] = [];
+            subnetGroups[subnet].push(node);
+        });
+
+        topologyContainer.innerHTML = Object.entries(subnetGroups).map(([subnet, nodes]) => `
+            <div style="margin-bottom: 1rem;">
+                <h4 style="margin-bottom: 0.5rem; color: var(--accent);">${subnet}</h4>
+                <ul style="list-style: none; padding-left: 0; margin: 0; display: grid; gap: 0.4rem;">
+                    ${nodes.map(node => `<li style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem;"><strong>${node.label || 'Unnamed device'}</strong> <span style="color: var(--text-muted);">(${node.ip || 'No IP'})</span> — <span style="color: ${node.status === 'up' ? 'var(--success)' : 'var(--warning)'};">${(node.status || 'unknown').toUpperCase()}</span></li>`).join('')}
+                </ul>
+            </div>
+        `).join('');
     }
 </script>
 {% endblock %}

@@ -62,11 +62,19 @@ class DatabaseManager:
 
     async def _migrate(self, current_version: int):
         """Run version-based migrations"""
-        # Example for future migrations:
-        # if current_version < 2:
-        #     await self._connection.execute("ALTER TABLE ...")
-        #     await self._connection.execute("UPDATE sys_config SET value = '2' WHERE key = 'db_version'")
-        pass
+        if current_version < 2:
+            async with self._connection.execute("PRAGMA table_info(devices)") as cursor:
+                columns = [row[1] for row in await cursor.fetchall()]
+
+            if "last_status_change" not in columns:
+                await self._connection.execute(
+                    "ALTER TABLE devices ADD COLUMN last_status_change TIMESTAMP"
+                )
+
+            await self._connection.execute(
+                "UPDATE sys_config SET value = '2' WHERE key = 'db_version'"
+            )
+            await self._connection.commit()
 
     async def execute(self, query: str, parameters: tuple = ()) -> Any:
         """Execute a single query (INSERT, UPDATE, DELETE)"""

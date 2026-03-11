@@ -2,11 +2,19 @@
 NetVault - Database Models and Schema
 """
 from datetime import datetime
+from enum import Enum
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel, Field
 import json
 
 # ─── Pydantic Models ───
+
+
+class DeviceStatus(str, Enum):
+    ONLINE = "online"
+    OFFLINE = "offline"
+    WARNING = "warning"
+    UNKNOWN = "unknown"
 
 class DeviceModel(BaseModel):
     model_config = {"populate_by_name": True}
@@ -17,8 +25,9 @@ class DeviceModel(BaseModel):
     port: int = 161
     connector_type: str  # snmp, ssh, rest_api
     config_json: Dict[str, Any] = Field(default_factory=dict, validation_alias="config")
-    status: str = "unknown"
+    status: DeviceStatus = DeviceStatus.UNKNOWN
     last_seen: Optional[datetime] = None
+    last_status_change: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -116,6 +125,7 @@ CREATE TABLE IF NOT EXISTS devices (
     credential_id INTEGER,
     is_active INTEGER DEFAULT 1,
     last_seen TIMESTAMP,
+    last_status_change TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (credential_id) REFERENCES credentials (id)
@@ -187,5 +197,5 @@ CREATE TABLE IF NOT EXISTS credentials (
 
 # Initial configuration
 INITIAL_SQL = """
-INSERT OR IGNORE INTO sys_config (key, value) VALUES ('db_version', '1');
+INSERT OR IGNORE INTO sys_config (key, value) VALUES ('db_version', '2');
 """

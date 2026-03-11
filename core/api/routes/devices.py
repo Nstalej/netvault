@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
-from core.database.models import DeviceModel
+from core.database.models import DeviceModel, DeviceStatus
 from core.database import crud
 from core.database.db import DatabaseManager
 from core.engine.device_manager import DeviceManager
@@ -44,6 +44,9 @@ async def get_device(
     device = await crud.get_device(db, device_id)
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
+
+    device["status"] = device.get("status", DeviceStatus.UNKNOWN.value)
+    device["latency_ms"] = device.get("config_json", {}).get("last_latency_ms")
     return device
 
 @router.put("/api/devices/{device_id}")
@@ -72,18 +75,22 @@ async def get_device_status(
 ):
     """Get the live operational status of a device"""
     status_str = await manager.get_device_status(device_id)
-    if status_str == "unknown":
+    if status_str == DeviceStatus.UNKNOWN.value:
          # Check if device exists at all
          device = await crud.get_device(manager.db, device_id)
          if not device:
              raise HTTPException(status_code=404, detail="Device not found")
              
-    data = await manager.get_device_data(device_id)
+    device = await crud.get_device(manager.db, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
     return {
-        "device_id": device_id,
-        "status": status_str,
-        "last_seen": data.get("last_poll") if data else None,
-        "features": ["snmp", "ssh"] # Placeholder for actual capability detection
+        "id": device_id,
+        "status": device.get("status", DeviceStatus.UNKNOWN.value),
+        "last_seen": device.get("last_seen"),
+        "latency_ms": device.get("config_json", {}).get("last_latency_ms"),
+        "features": ["snmp", "ssh"]
     }
 
 @router.post("/api/devices/{device_id}/test")
@@ -94,19 +101,22 @@ async def test_device_connectivity(
     """Initiate a connectivity test for the device"""
     result = await manager.test_device(device_id)
     
-    # Update status based on test result
-    status = "up" if result.success else "offline"
-    try:
-        await crud.update_device(manager.db, device_id, {"status": status})
-        if device_id in manager._devices:
-            manager._devices[device_id]["status"] = status
-    except Exception as e:
-        import logging
-        logging.getLogger("netvault.api").error(f"Failed to update status for device {device_id}: {e}")
-        
+    result_status = DeviceStatus.OFFLINE
+    if result.success:
+        result_status = DeviceStatus.WARNING if (result.latency_ms or 0) > 2000 else DeviceStatus.ONLINE
+
+    device = await crud.get_device(manager.db, device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+
+    config_json = device.get("config_json", {})
+    config_json["last_latency_ms"] = result.latency_ms
+    await crud.update_device(manager.db, device_id, {"config_json": config_json})
+
     return {
         "device_id": device_id,
         "success": result.success,
+        "status": result_status.value,
         "latency_ms": result.latency_ms,
         "error": result.error_message
     }
@@ -121,7 +131,7 @@ async def test_all_devices(manager: DeviceManager = Depends(get_manager)):
     for device in devices:
         res = await test_device_connectivity(device["id"], manager)
         results.append(res)
-        if res["success"]:
+        if res["status"] == DeviceStatus.ONLINE.value:
             online += 1
         else:
             offline += 1
@@ -211,3 +221,11 @@ async def refresh_device(
     await manager.refresh_device_data(device_id)
     return {"message": "Data refresh triggered", "device_id": device_id}
 
+@router.get("/api/devices/{device_id}/refresh")
+async def refresh_device_get(
+    device_id: int,
+    manager: DeviceManager = Depends(get_manager)
+):
+    """GET alias for manual refresh actions from dashboard UIs"""
+    await manager.refresh_device_data(device_id)
+    return {"message": "Data refresh triggered", "device_id": device_id}
