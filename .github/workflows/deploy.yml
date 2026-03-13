@@ -13,11 +13,9 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
-          # IMPORTANT: this host must be the VM/LXC where NetVault runs,
-          # not the Proxmox hypervisor node.
-          host: ${{ secrets.DEPLOY_HOST || '172.17.0.56' }}
-          username: ${{ secrets.DEPLOY_USER || secrets.PROXMOX_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY || secrets.PROXMOX_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.PROXMOX_USER }}
+          key: ${{ secrets.PROXMOX_SSH_KEY }}
           script_stop: true
           script: |
             cd ~/projects/netvault
