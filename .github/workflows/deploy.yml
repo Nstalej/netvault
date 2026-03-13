@@ -1,0 +1,26 @@
+name: Deploy to App Instance
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy NetVault
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.PROXMOX_USER }}
+          key: ${{ secrets.PROXMOX_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd ~/projects/netvault
+            git pull origin main
+            docker compose build --no-cache
+            docker compose up -d
+            sleep 10
+            curl -f http://localhost:8080/health || exit 1

@@ -2,27 +2,29 @@
 NetVault - Device Manager Engine
 Main engine for managing network devices, credentials, and polling operations.
 """
+
 import asyncio
-import logging
 import time
 from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, Optional
 
-from core.database.db import DatabaseManager
+from connectors.base import ConnectionTestResult, get_connector
 from core.database import crud
+from core.database.db import DatabaseManager
 from core.database.models import DeviceStatus
 from core.engine.credential_vault import CredentialVault
 from core.engine.logger import get_logger
-from connectors.base import get_connector, ConnectionTestResult
 
 logger = get_logger("netvault.engine.device_manager")
+
 
 class DeviceManager:
     """
     Singleton engine that coordinates between API, Database, and Connectors.
     Handles device loading, connector instantiation, and parallel polling.
     """
-    _instance: Optional['DeviceManager'] = None
+
+    _instance: Optional["DeviceManager"] = None
 
     def __new__(cls, *args, **kwargs):
         if not cls._instance:
@@ -31,17 +33,17 @@ class DeviceManager:
 
     def __init__(self):
         # Set up variables, initialization will happen in initialize()
-        if not hasattr(self, '_initialized'):
+        if not hasattr(self, "_initialized"):
             self._initialized = False
             self.db = None
             self.vault = None
             self._devices: Dict[int, Dict[str, Any]] = {}  # Cache of DB device configs
-            self._connectors: Dict[int, Any] = {}          # Cache of connector instances
-            self._cache: Dict[int, Dict[str, Any]] = {}    # Cache of latest poll data
-            self._semaphore = asyncio.Semaphore(5)         # Default max concurrent polls
-            
+            self._connectors: Dict[int, Any] = {}  # Cache of connector instances
+            self._cache: Dict[int, Dict[str, Any]] = {}  # Cache of latest poll data
+            self._semaphore = asyncio.Semaphore(5)  # Default max concurrent polls
+
     def initialize(self, db: DatabaseManager, vault: CredentialVault):
-        if getattr(self, '_initialized', False):
+        if getattr(self, "_initialized", False):
             return
         self.db = db
         self.vault = vault
@@ -49,9 +51,9 @@ class DeviceManager:
         logger.info("Device Manager initialized")
 
     @classmethod
-    def get_instance(cls) -> 'DeviceManager':
+    def get_instance(cls) -> "DeviceManager":
         """Access the singleton instance of the Device Manager."""
-        if cls._instance is None or not getattr(cls._instance, '_initialized', False):
+        if cls._instance is None or not getattr(cls._instance, "_initialized", False):
             raise RuntimeError("DeviceManager not initialized. Call initialize() first.")
         return cls._instance
 
@@ -59,7 +61,7 @@ class DeviceManager:
         """Load all devices from the database into memory."""
         try:
             devices = await crud.list_devices(self.db)
-            self._devices = {d['id']: d for d in devices}
+            self._devices = {d["id"]: d for d in devices}
             logger.info(f"Loaded {len(self._devices)} devices from database")
         except Exception as e:
             logger.error(f"Failed to load devices from DB: {e}")
@@ -74,14 +76,14 @@ class DeviceManager:
             # Try reloading if not found in cache
             await self.load_devices()
             device_cfg = self._devices.get(device_id)
-        
+
         if not device_cfg:
             logger.warning(f"Device ID {device_id} not found")
             return None
 
         connector_type = device_cfg.get("connector_type")
         connector_cls = get_connector(connector_type)
-        
+
         if not connector_cls:
             logger.error(f"Connector type '{connector_type}' not registered")
             return None
@@ -92,21 +94,21 @@ class DeviceManager:
         # Let's check how credentials are stored. Based on core/engine/device_manager.py (old):
         # it used cred_id. Based on crud.py, we have get_credential(db, cred_id).
         # Based on credential_vault.py, it uses name.
-        
+
         # We'll try to find the credential name from the device config or name
         cred_name = device_cfg.get("config_json", {}).get("credential_name")
         if not cred_name:
-             # Fallback: check if there's a credential_id in the device record
-             cred_id = device_cfg.get("credential_id")
-             if cred_id:
-                 cred_record = await crud.get_credential(self.db, cred_id)
-                 if cred_record:
-                     cred_name = cred_record.get("name")
+            # Fallback: check if there's a credential_id in the device record
+            cred_id = device_cfg.get("credential_id")
+            if cred_id:
+                cred_record = await crud.get_credential(self.db, cred_id)
+                if cred_record:
+                    cred_name = cred_record.get("name")
 
         if not cred_name:
             logger.warning(f"No credential associated with device {device_cfg.get('name')}")
-            # Some connectors might not need credentials, but usually they do
-            credentials = {}
+            # Current NetVault connectors require credentials to initialize safely.
+            return None
         else:
             credentials = await self.vault.get_credential(cred_name)
             if not credentials:
@@ -118,7 +120,7 @@ class DeviceManager:
             connector = connector_cls(
                 device_id=str(device_id),
                 device_ip=device_cfg.get("ip") or device_cfg.get("ip_address"),
-                credentials=credentials
+                credentials=credentials,
             )
             self._connectors[device_id] = connector
             return connector
@@ -137,9 +139,9 @@ class DeviceManager:
             name = device_cfg.get("name")
             ip = device_cfg.get("ip") or device_cfg.get("ip_address")
             start_time = time.time()
-            
+
             logger.info(f"Polling device {name} ({ip})...")
-            
+
             connector = await self.get_connector(device_id)
             if not connector:
                 await self._update_device_status(device_id, DeviceStatus.OFFLINE)
@@ -156,24 +158,24 @@ class DeviceManager:
                 # 2. Collect basic data
                 system_info = await connector.get_system_info()
                 interfaces = await connector.get_interfaces()
-                
+
                 # Convert dataclasses to dicts if necessary (assuming they are serializable or handled by JSON)
                 # For simplified cache, we store raw results
                 poll_data = {
                     "system_info": system_info,
-                    "interfaces": [vars(i) if hasattr(i, '__dict__') else i for i in interfaces],
-                    "last_poll": datetime.now(timezone.utc).isoformat()
+                    "interfaces": [vars(i) if hasattr(i, "__dict__") else i for i in interfaces],
+                    "last_poll": datetime.now(timezone.utc).isoformat(),
                 }
-                
+
                 self._cache[device_id] = poll_data
-                
+
                 # 3. Update Status
                 status = DeviceStatus.ONLINE
                 if not interfaces:
                     status = DeviceStatus.WARNING  # Connected but failed to get interfaces
-                
+
                 await self._update_device_status(device_id, status)
-                
+
                 duration = time.time() - start_time
                 logger.info(f"Poll completed for {name} in {duration:.2f}s - {status}")
 
@@ -189,7 +191,7 @@ class DeviceManager:
         # Update semaphore if requested
         if max_concurrent != self._semaphore._value:
             self._semaphore = asyncio.Semaphore(max_concurrent)
-            
+
         await self.load_devices()
         tasks = [self.poll_device(device_id) for device_id in self._devices.keys()]
         if tasks:
@@ -250,16 +252,16 @@ class DeviceManager:
                 arp_table = await connector.get_arp_table()
                 mac_table = await connector.get_mac_table()
                 routes = await connector.get_routes()
-                
+
                 data = {
                     "system_info": system_info,
-                    "interfaces": [vars(i) if hasattr(i, '__dict__') else i for i in interfaces],
-                    "arp_table": [vars(a) if hasattr(a, '__dict__') else a for a in arp_table],
-                    "mac_table": [vars(m) if hasattr(m, '__dict__') else m for m in mac_table],
-                    "routes": [vars(r) if hasattr(r, '__dict__') else r for r in routes],
-                    "last_refresh": datetime.now(timezone.utc).isoformat()
+                    "interfaces": [vars(i) if hasattr(i, "__dict__") else i for i in interfaces],
+                    "arp_table": [vars(a) if hasattr(a, "__dict__") else a for a in arp_table],
+                    "mac_table": [vars(m) if hasattr(m, "__dict__") else m for m in mac_table],
+                    "routes": [vars(r) if hasattr(r, "__dict__") else r for r in routes],
+                    "last_refresh": datetime.now(timezone.utc).isoformat(),
                 }
-                
+
                 self._cache[device_id] = data
                 await self._update_device_status(device_id, DeviceStatus.ONLINE)
                 logger.info(f"Full data refresh completed for device {device_id}")
@@ -289,18 +291,20 @@ class DeviceManager:
         except Exception as e:
             logger.error(f"Failed to update device {device_id} status in DB: {e}")
 
+
 _DEVICE_MANAGER_INSTANCE: Optional[DeviceManager] = None
+
 
 def get_device_manager(db: Optional[DatabaseManager] = None, vault: Optional[CredentialVault] = None) -> DeviceManager:
     """Access the singleton instance of the Device Manager."""
     global _DEVICE_MANAGER_INSTANCE
     if _DEVICE_MANAGER_INSTANCE is None:
         _DEVICE_MANAGER_INSTANCE = DeviceManager()
-        
-    if db is not None and vault is not None and not getattr(_DEVICE_MANAGER_INSTANCE, '_initialized', False):
+
+    if db is not None and vault is not None and not getattr(_DEVICE_MANAGER_INSTANCE, "_initialized", False):
         _DEVICE_MANAGER_INSTANCE.initialize(db, vault)
-        
-    if not getattr(_DEVICE_MANAGER_INSTANCE, '_initialized', False):
+
+    if not getattr(_DEVICE_MANAGER_INSTANCE, "_initialized", False):
         raise ValueError("DatabaseManager and CredentialVault required for first initialization")
-        
+
     return _DEVICE_MANAGER_INSTANCE
