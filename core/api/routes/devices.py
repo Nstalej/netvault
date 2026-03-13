@@ -12,6 +12,11 @@ from core.engine.device_manager import DeviceManager
 
 router = APIRouter(tags=["devices"])
 
+
+class DeviceDataFixPayload(BaseModel):
+    mikrotik_device_id: int = 3
+    mikrotik_real_ip: Optional[str] = None
+
 def get_db(request: Request) -> DatabaseManager:
     return request.app.state.db
 
@@ -100,10 +105,6 @@ async def test_device_connectivity(
 ):
     """Initiate a connectivity test for the device"""
     result = await manager.test_device(device_id)
-    
-    result_status = DeviceStatus.OFFLINE
-    if result.success:
-        result_status = DeviceStatus.WARNING if (result.latency_ms or 0) > 2000 else DeviceStatus.ONLINE
 
     device = await crud.get_device(manager.db, device_id)
     if not device:
@@ -111,14 +112,55 @@ async def test_device_connectivity(
 
     config_json = device.get("config_json", {})
     config_json["last_latency_ms"] = result.latency_ms
+    if result.error_message:
+        config_json["last_test_error"] = result.error_message
+    else:
+        config_json.pop("last_test_error", None)
     await crud.update_device(manager.db, device_id, {"config_json": config_json})
+
+    updated_device = await crud.get_device(manager.db, device_id)
+    status_value = updated_device.get("status", DeviceStatus.UNKNOWN.value) if updated_device else DeviceStatus.UNKNOWN.value
 
     return {
         "device_id": device_id,
         "success": result.success,
-        "status": result_status.value,
+        "status": status_value,
         "latency_ms": result.latency_ms,
         "error": result.error_message
+    }
+
+
+@router.post("/api/devices/maintenance/fix-known-network-data")
+async def fix_known_network_data(
+    payload: Optional[DeviceDataFixPayload] = None,
+    db: DatabaseManager = Depends(get_db),
+):
+    """Apply known production data fixes for SSH device connectivity."""
+    payload = payload or DeviceDataFixPayload()
+
+    fixed: Dict[str, Any] = {
+        "ports_updated": [],
+        "mikrotik_ip_updated": False,
+    }
+
+    for dev_id in [4, 5, 7]:
+        device = await crud.get_device(db, dev_id)
+        if not device:
+            continue
+        if int(device.get("port") or 0) != 22:
+            await crud.update_device(db, dev_id, {"port": 22})
+            fixed["ports_updated"].append(dev_id)
+
+    if payload.mikrotik_real_ip:
+        device = await crud.get_device(db, payload.mikrotik_device_id)
+        if device:
+            await crud.update_device(db, payload.mikrotik_device_id, {"ip": payload.mikrotik_real_ip})
+            fixed["mikrotik_ip_updated"] = True
+
+    return {
+        "message": "Known network data fixes applied",
+        "changes": fixed,
+        "sql_reference": "UPDATE devices SET port = 22 WHERE id IN (4,5,7);",
     }
     
 @router.post("/api/devices/test-all")
