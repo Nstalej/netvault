@@ -103,7 +103,8 @@ class DeviceManager:
         # Based on credential_vault.py, it uses name.
 
         # We'll try to find the credential name from the device config or name
-        cred_name = device_cfg.get("config_json", {}).get("credential_name")
+        config_json = device_cfg.get("config_json", {}) or {}
+        cred_name = config_json.get("credential_name")
         if not cred_name:
             # Fallback: check if there's a credential_id in the device record
             cred_id = device_cfg.get("credential_id")
@@ -123,11 +124,22 @@ class DeviceManager:
                 return None
 
         try:
+            merged_credentials = dict(credentials)
+            for key, value in config_json.items():
+                if key == "credential_name":
+                    continue
+                merged_credentials[key] = value
+
+            if device_cfg.get("port"):
+                merged_credentials["port"] = device_cfg.get("port")
+            if not merged_credentials.get("device_type") and device_cfg.get("type"):
+                merged_credentials["device_type"] = device_cfg.get("type")
+
             # Instantiate connector
             connector = connector_cls(
                 device_id=str(device_id),
                 device_ip=device_cfg.get("ip") or device_cfg.get("ip_address"),
-                credentials=credentials,
+                credentials=merged_credentials,
             )
             self._connectors[device_id] = connector
             return connector
@@ -397,15 +409,39 @@ class DeviceManager:
 
         try:
             result = await connector.test_connection()
-            status = DeviceStatus.OFFLINE
-            if result.success:
-                status = DeviceStatus.WARNING if (result.latency_ms or 0) > 2000 else DeviceStatus.ONLINE
+            status = self._derive_status_from_test_result(result)
 
             await self._update_device_status(device_id, status)
+
+            # Ensure update is persisted and cache has latest value.
+            updated = await crud.get_device(self.db, device_id)
+            if updated:
+                self._devices[device_id] = updated
+
             return result
         except Exception as e:
             await self._update_device_status(device_id, DeviceStatus.OFFLINE)
             return ConnectionTestResult(success=False, latency_ms=0, error_message=str(e))
+
+    @staticmethod
+    def _derive_status_from_test_result(result: ConnectionTestResult) -> DeviceStatus:
+        if result.success:
+            return DeviceStatus.ONLINE
+
+        error_text = (result.error_message or "").lower()
+        auth_markers = [
+            "authentication",
+            "auth failed",
+            "permission denied",
+            "invalid password",
+            "password",
+            "credential",
+        ]
+
+        if any(marker in error_text for marker in auth_markers):
+            return DeviceStatus.WARNING
+
+        return DeviceStatus.OFFLINE
 
     async def get_device_status(self, device_id: int) -> str:
         """Return cached status without polling."""

@@ -125,12 +125,19 @@ async def test_device_connectivity(
 
     config_json = device.get("config_json", {})
     config_json["last_latency_ms"] = result.latency_ms
+    if result.error_message:
+        config_json["last_test_error"] = result.error_message
+    else:
+        config_json.pop("last_test_error", None)
     await crud.update_device(manager.db, device_id, {"config_json": config_json})
+
+    updated_device = await crud.get_device(manager.db, device_id)
+    status_value = updated_device.get("status", DeviceStatus.UNKNOWN.value) if updated_device else DeviceStatus.UNKNOWN.value
 
     return {
         "device_id": device_id,
         "success": result.success,
-        "status": result_status.value,
+        "status": status_value,
         "latency_ms": result.latency_ms,
         "error": result.error_message,
     }
