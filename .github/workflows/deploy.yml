@@ -1,4 +1,4 @@
-name: Deploy to Production
+name: Deploy to App Instance
 
 on:
   push:
@@ -7,15 +7,18 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Proxmox
+    name: Deploy NetVault
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.PROXMOX_HOST }}
-          username: ${{ secrets.PROXMOX_USER }}
-          key: ${{ secrets.PROXMOX_SSH_KEY }}
+          # IMPORTANT: this host must be the VM/LXC where NetVault runs,
+          # not the Proxmox hypervisor node.
+          host: ${{ secrets.DEPLOY_HOST || '172.17.0.56' }}
+          username: ${{ secrets.DEPLOY_USER || secrets.PROXMOX_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY || secrets.PROXMOX_SSH_KEY }}
+          script_stop: true
           script: |
             cd ~/projects/netvault
             git pull origin main
