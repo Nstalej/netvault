@@ -1,11 +1,12 @@
 """
 NetVault - Database Models and Schema
 """
+
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, Optional
+
 from pydantic import BaseModel, Field
-import json
 
 # ─── Pydantic Models ───
 
@@ -16,6 +17,7 @@ class DeviceStatus(str, Enum):
     WARNING = "warning"
     UNKNOWN = "unknown"
 
+
 class DeviceModel(BaseModel):
     model_config = {"populate_by_name": True}
     id: Optional[int] = None
@@ -24,12 +26,17 @@ class DeviceModel(BaseModel):
     ip: str
     port: int = 161
     connector_type: str  # snmp, ssh, rest_api
-    config_json: Dict[str, Any] = Field(default_factory=dict, validation_alias="config")
+    config_json: Dict[str, Any] = Field(
+        default_factory=dict,
+        validation_alias="config",
+        serialization_alias="config",
+    )
     status: DeviceStatus = DeviceStatus.UNKNOWN
     last_seen: Optional[datetime] = None
     last_status_change: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
 
 class AgentModel(BaseModel):
     id: Optional[int] = None
@@ -42,6 +49,7 @@ class AgentModel(BaseModel):
     registered_at: Optional[datetime] = None
     config_json: Dict[str, Any] = Field(default_factory=dict)
 
+
 class AuditLogModel(BaseModel):
     id: Optional[int] = None
     device_id: int
@@ -52,6 +60,7 @@ class AuditLogModel(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
+
 class AlertRuleModel(BaseModel):
     id: Optional[int] = None
     name: str
@@ -59,6 +68,7 @@ class AlertRuleModel(BaseModel):
     severity: str = "info"  # info, warning, critical
     enabled: bool = True
     created_at: Optional[datetime] = None
+
 
 class AlertModel(BaseModel):
     id: Optional[int] = None
@@ -69,6 +79,7 @@ class AlertModel(BaseModel):
     acknowledged: bool = False
     triggered_at: Optional[datetime] = None
 
+
 class CredentialStoreModel(BaseModel):
     id: Optional[int] = None
     name: str
@@ -77,7 +88,9 @@ class CredentialStoreModel(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+
 # ─── DeviceManager Models ───
+
 
 class DeviceCreate(BaseModel):
     name: str
@@ -87,14 +100,17 @@ class DeviceCreate(BaseModel):
     credential_id: Optional[int] = None
     is_active: bool = True
 
+
 class Device(DeviceCreate):
     id: Optional[int] = None
     created_at: Optional[datetime] = None
+
 
 class CredentialCreate(BaseModel):
     name: str
     username: str = "admin"
     password: str
+
 
 class Credential(BaseModel):
     id: Optional[int] = None
@@ -102,6 +118,7 @@ class Credential(BaseModel):
     username: str
     encrypted_password: str
     created_at: Optional[datetime] = None
+
 
 # ─── SQL Schema ───
 

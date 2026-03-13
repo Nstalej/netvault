@@ -5,23 +5,22 @@ Implementation of SSH-based network device interaction using Paramiko.
 
 import asyncio
 import time
-import socket
+from typing import Any, Dict, List, Optional
+
 import paramiko
-from typing import Dict, List, Any, Optional
-from datetime import datetime
 
 from connectors.base import (
-    BaseConnector, 
-    ConnectionTestResult, 
-    InterfaceInfo, 
-    ArpEntry, 
-    MacEntry, 
-    RouteEntry, 
-    AuditResult, 
-    register_connector
+    ArpEntry,
+    AuditResult,
+    BaseConnector,
+    ConnectionTestResult,
+    InterfaceInfo,
+    MacEntry,
+    RouteEntry,
+    register_connector,
 )
+from connectors.ssh_connector.parsers import cisco_parser, mikrotik_parser
 from core.engine.logger import get_logger
-from connectors.ssh_connector.parsers import mikrotik_parser, cisco_parser
 
 logger = get_logger(__name__)
 
@@ -39,7 +38,7 @@ class SSHConnector(BaseConnector):
         self.username = credentials.get("username")
         self.password = credentials.get("password")
         self.key_filename = credentials.get("key_filename")
-        self.device_type = credentials.get("device_type", "auto") # auto, mikrotik, cisco
+        self.device_type = credentials.get("device_type", "auto")  # auto, mikrotik, cisco
         self.client: Optional[paramiko.SSHClient] = None
         self.shell: Optional[paramiko.Channel] = None
         self.timeout = credentials.get("timeout", 10)
@@ -49,7 +48,7 @@ class SSHConnector(BaseConnector):
         try:
             self.client = paramiko.SSHClient()
             self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            
+
             # Connection parameters
             connect_kwargs = {
                 "hostname": self.device_ip,
@@ -57,9 +56,9 @@ class SSHConnector(BaseConnector):
                 "username": self.username,
                 "timeout": self.timeout,
                 "look_for_keys": True,
-                "allow_agent": True
+                "allow_agent": True,
             }
-            
+
             if self.password:
                 connect_kwargs["password"] = self.password
             if self.key_filename:
@@ -68,16 +67,18 @@ class SSHConnector(BaseConnector):
             # Executing blocking paramiko call in a thread pool to keep it async-friendly
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, lambda: self.client.connect(**connect_kwargs))
-            
+
             self._is_connected = True
-            
+
             # Detect device type if set to auto
             if self.device_type == "auto":
                 await self._detect_device_type()
-                
-            logger.info("Connected to %s (%s) via SSH", self.device_ip, self.device_type, extra={"device_id": self.device_id})
+
+            logger.info(
+                "Connected to %s (%s) via SSH", self.device_ip, self.device_type, extra={"device_id": self.device_id}
+            )
             return True
-            
+
         except Exception as e:
             logger.error("Failed to connect to %s: %s", self.device_ip, str(e), extra={"device_id": self.device_id})
             self._is_connected = False
@@ -96,12 +97,14 @@ class SSHConnector(BaseConnector):
         try:
             success = await self.connect()
             latency = (time.time() - start_time) * 1000
-            
+
             if success:
                 await self.disconnect()
                 return ConnectionTestResult(success=True, latency_ms=latency)
             else:
-                return ConnectionTestResult(success=False, latency_ms=latency, error_message="Authentication failed or timeout")
+                return ConnectionTestResult(
+                    success=False, latency_ms=latency, error_message="Authentication failed or timeout"
+                )
         except Exception as e:
             latency = (time.time() - start_time) * 1000
             return ConnectionTestResult(success=False, latency_ms=latency, error_message=str(e))
@@ -113,9 +116,10 @@ class SSHConnector(BaseConnector):
                 raise ConnectionError("Not connected to device")
 
         loop = asyncio.get_event_loop()
+
         def _exec():
             stdin, stdout, stderr = self.client.exec_command(command, timeout=self.timeout)
-            return stdout.read().decode('utf-8', errors='ignore')
+            return stdout.read().decode("utf-8", errors="ignore")
 
         return await loop.run_in_executor(None, _exec)
 
@@ -136,7 +140,7 @@ class SSHConnector(BaseConnector):
                 else:
                     # Default/fallback
                     self.device_type = "unknown"
-        except:
+        except Exception:
             self.device_type = "unknown"
 
     async def get_system_info(self) -> Dict[str, Any]:
@@ -149,7 +153,7 @@ class SSHConnector(BaseConnector):
             msg = cisco_parser.parse_show_version(output)
         else:
             msg = {"error": "Unsupported device type"}
-            
+
         self._device_info = msg
         return msg
 
