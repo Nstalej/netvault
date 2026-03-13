@@ -18,6 +18,7 @@ from core.database.db import DatabaseManager
 from core.engine.credential_vault import CredentialVault
 from core.engine.device_manager import DeviceManager
 from core.engine.audit_engine import AuditEngine
+from core.engine.network_discovery import NetworkDiscoveryEngine
 from core.engine.scheduler import get_scheduler
 from core.api.routes import devices, agents, audit, health, credentials, dashboard, network
 
@@ -61,6 +62,9 @@ async def lifespan(app: FastAPI):
         from core.engine.device_manager import get_device_manager
         device_manager = get_device_manager(db, vault)
         app.state.device_manager = device_manager
+
+        # Initialize Discovery Engine
+        app.state.network_discovery = NetworkDiscoveryEngine(db)
         
         # Initialize Audit Engine
         audit_engine = AuditEngine(db, device_manager)
@@ -70,6 +74,13 @@ async def lifespan(app: FastAPI):
         scheduler = get_scheduler()
         await scheduler.start()
         app.state.scheduler = scheduler
+
+        # Start periodic polling loop
+        await device_manager.start_scheduled_polling(
+            interval_minutes=config.polling.interval_minutes,
+            agent_offline_seconds=config.polling.agent_offline_seconds,
+            device_concurrency=config.polling.device_concurrency,
+        )
         
         logger.info("Core components initialized")
         
@@ -89,6 +100,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     try:
+        if hasattr(app.state, 'device_manager'):
+            await app.state.device_manager.stop_scheduled_polling()
         if hasattr(app.state, 'scheduler'):
             await app.state.scheduler.stop()
         if hasattr(app.state, 'db'):

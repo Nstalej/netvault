@@ -3,13 +3,26 @@ NetVault - Global Network routes
 Topology visualization and cross-device searching.
 """
 from typing import List, Dict, Any, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
+
 from core.engine.device_manager import DeviceManager
+from core.engine.network_discovery import NetworkDiscoveryEngine
 
 router = APIRouter(prefix="/api/network", tags=["network"])
 
 def get_manager(request: Request) -> DeviceManager:
     return request.app.state.device_manager
+
+
+def get_discovery_engine(request: Request) -> NetworkDiscoveryEngine:
+    return request.app.state.network_discovery
+
+
+class DiscoveryRequest(BaseModel):
+    subnets: List[str] = Field(default_factory=list)
+    methods: List[str] = Field(default_factory=lambda: ["ping", "ssh", "snmp"])
 
 @router.get("/topology")
 async def get_topology(manager: DeviceManager = Depends(get_manager)):
@@ -110,3 +123,34 @@ async def search_network(
             })
 
     return results
+
+
+@router.post("/discover")
+async def discover_network(
+    payload: DiscoveryRequest,
+    discovery: NetworkDiscoveryEngine = Depends(get_discovery_engine),
+):
+    """Start asynchronous network discovery job for provided subnets and methods."""
+    try:
+        job_id = await discovery.start_discovery(payload.subnets, payload.methods)
+        return {
+            "job_id": job_id,
+            "status": "running",
+            "message": "Discovery started",
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to start discovery: {exc}")
+
+
+@router.get("/discover/{job_id}")
+async def get_discovery_status(
+    job_id: str,
+    discovery: NetworkDiscoveryEngine = Depends(get_discovery_engine),
+):
+    """Get current status and results for discovery job."""
+    job = await discovery.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Discovery job not found")
+    return job
