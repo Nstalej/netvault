@@ -6,7 +6,7 @@ Main engine for managing network devices, credentials, and polling operations.
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, List, Optional
 
 from connectors.base import ConnectionTestResult, get_connector
 from core.database import crud
