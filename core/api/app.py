@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -133,5 +133,26 @@ def create_app(config: Settings) -> FastAPI:
     app.include_router(audit.router)
     app.include_router(credentials.router)
     app.include_router(network.router)
+
+    existing_device_detail = any(
+        getattr(route, "path", None) == "/devices/{device_id}" and "GET" in getattr(route, "methods", set())
+        for route in app.routes
+    )
+
+    if not existing_device_detail:
+        @app.get("/devices/{device_id}", response_class=HTMLResponse, include_in_schema=False)
+        async def get_device_detail_page(request: Request, device_id: int):
+            """Serve device detail page by id."""
+            config = request.app.state.config
+            return request.app.state.templates.TemplateResponse(
+                "device_detail.html",
+                {
+                    "request": request,
+                    "active_page": "devices",
+                    "device_id": device_id,
+                    "version": config.app.version,
+                    "environment": config.app.environment,
+                },
+            )
     
     return app
