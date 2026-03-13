@@ -46,10 +46,37 @@ class SSHConnector(BaseConnector):
         self.shell_prompt = credentials.get("shell_prompt", "#")
         self.interactive_test_command = credentials.get("interactive_test_command", "get version")
         self.interactive_retries = int(credentials.get("interactive_retries", 2))
+        self.known_hosts_file = credentials.get("known_hosts_file")
+        self.allow_unknown_host_keys = bool(credentials.get("allow_unknown_host_keys", False))
         self.client: Optional[paramiko.SSHClient] = None
         self.shell: Optional[paramiko.Channel] = None
         self.timeout = credentials.get("timeout", 10)
         self._last_error: Optional[str] = None
+
+    def _configure_host_keys(self, client: paramiko.SSHClient):
+        """Configure host key verification policy for SSH clients."""
+        client.load_system_host_keys()
+        if self.known_hosts_file:
+            try:
+                client.load_host_keys(self.known_hosts_file)
+            except Exception as exc:
+                logger.warning(
+                    "Could not load known_hosts file '%s': %s",
+                    self.known_hosts_file,
+                    exc,
+                    extra={"device_id": self.device_id},
+                )
+
+        if self.allow_unknown_host_keys:
+            logger.warning(
+                "allow_unknown_host_keys is enabled for %s; unknown host keys will be accepted",
+                self.device_ip,
+                extra={"device_id": self.device_id},
+            )
+            client.set_missing_host_key_policy(paramiko.WarningPolicy())
+            return
+
+        client.set_missing_host_key_policy(paramiko.RejectPolicy())
 
     @staticmethod
     def _is_auth_exception(exc: Exception) -> bool:
@@ -214,7 +241,7 @@ class SSHConnector(BaseConnector):
             client: Optional[paramiko.SSHClient] = None
             try:
                 client = paramiko.SSHClient()
-                client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                self._configure_host_keys(client)
 
                 connect_kwargs = self._build_connect_kwargs(
                     host=host,
@@ -263,7 +290,7 @@ class SSHConnector(BaseConnector):
         """Establish SSH connection and detect device type."""
         try:
             self.client = paramiko.SSHClient()
-            self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self._configure_host_keys(self.client)
 
             connect_kwargs = self._build_connect_kwargs()
             client = self.client
@@ -304,8 +331,13 @@ class SSHConnector(BaseConnector):
         if self.shell:
             try:
                 self.shell.close()
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning(
+                    "Error while closing interactive shell for %s: %s",
+                    self.device_ip,
+                    exc,
+                    extra={"device_id": self.device_id},
+                )
             self.shell = None
         if self.client:
             self.client.close()
