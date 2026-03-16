@@ -4,216 +4,405 @@
 {% block page_title %}Device Detail{% endblock %}
 
 {% block content %}
-<div class="card"
-    style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-    <div>
-        <h3 id="device-title" style="margin: 0;">Device #{{ device_id }}</h3>
-        <p id="device-subtitle" style="margin: 0.35rem 0 0; color: var(--text-muted); font-size: 0.9rem;">Loading...</p>
-    </div>
-    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end;">
-        <button class="btn btn-outline" onclick="testDevice()"><i class="fas fa-network-wired"></i> Test</button>
-        <button class="btn btn-outline" onclick="refreshAllTabs()"><i class="fas fa-sync"></i> Refresh</button>
-        <button class="btn btn-outline" onclick="editDevice()"><i class="fas fa-edit"></i> Edit</button>
-        <button class="btn btn-outline" style="color: var(--danger);" onclick="deleteDevice()"><i
-                class="fas fa-trash"></i> Delete</button>
-    </div>
-</div>
+<style>
+    .detail-shell { display: flex; flex-direction: column; gap: 1rem; }
+    .header-card { padding: 1rem; }
+    .header-top { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .header-title-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.55rem; }
+    .header-meta { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .header-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; }
 
-<div class="card" style="padding: 0;">
-    <div style="display: flex; border-bottom: 1px solid var(--border); overflow-x: auto;">
-        <button class="nav-item active" onclick="setTab('overview', this)">Overview</button>
-        <button class="nav-item" onclick="setTab('interfaces', this)">Interfaces</button>
-        <button class="nav-item" onclick="setTab('arp', this)">ARP Table</button>
-        <button class="nav-item" onclick="setTab('mac-table', this)">MAC Table</button>
-        <button class="nav-item" onclick="setTab('routes', this)">Routes</button>
-        <button class="nav-item" onclick="setTab('system', this)">System</button>
+    .status-badge { border-radius: 999px; font-size: 0.75rem; padding: 0.14rem 0.58rem; border: 1px solid transparent; }
+    .status-online { color: var(--success); background: rgba(74, 222, 128, 0.12); border-color: rgba(74, 222, 128, 0.35); }
+    .status-warning { color: var(--warning); background: rgba(250, 204, 21, 0.12); border-color: rgba(250, 204, 21, 0.35); }
+    .status-offline { color: var(--danger); background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.35); }
+    .status-unknown { color: var(--text-muted); background: rgba(255, 255, 255, 0.05); border-color: var(--border); }
+
+    .tabs-wrap { display: flex; gap: 0.25rem; overflow-x: auto; border-bottom: 1px solid var(--border); }
+    .tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 0.78rem 0.9rem; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
+    .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--accent); background: rgba(255, 255, 255, 0.03); }
+
+    .tab-content { padding: 1rem; }
+    .cards-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .info-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; }
+    .info-label { color: var(--text-muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.2rem; }
+    .info-value { color: var(--text-primary); font-size: 0.92rem; word-break: break-word; }
+
+    .table-box { border: 1px solid var(--border); border-radius: 10px; overflow: auto; max-height: 62vh; }
+    .table-box table { width: 100%; border-collapse: collapse; }
+    .table-box th, .table-box td { text-align: left; padding: 0.62rem 0.7rem; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 0.86rem; }
+    .table-box tr:last-child td { border-bottom: none; }
+    .table-box th { position: sticky; top: 0; z-index: 2; background: var(--bg-secondary); }
+
+    .spinner-row { display: flex; align-items: center; gap: 0.65rem; color: var(--text-muted); }
+    .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.18); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+    .inline-msg { margin-top: 0.75rem; font-size: 0.85rem; }
+    .inline-msg.success { color: var(--success); }
+    .inline-msg.error { color: var(--danger); }
+    .inline-msg.warning { color: var(--warning); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 720px) {
+        .tabs-wrap { flex-wrap: wrap; overflow: visible; }
+    }
+</style>
+
+<div class="detail-shell">
+    <div class="card header-card">
+        <div class="header-top">
+            <div>
+                <a href="/devices" class="btn btn-outline" style="padding:0.4rem 0.75rem;"><i class="fas fa-arrow-left"></i> Back to Devices</a>
+                <div class="header-title-row">
+                    <h3 id="device-name" style="margin:0;">Device #{{ device_id }}</h3>
+                    <span id="device-status" class="status-badge status-unknown">UNKNOWN</span>
+                </div>
+                <div class="header-meta">
+                    <span>IP: <code id="device-ip">-</code></span>
+                    <span>&bull;</span>
+                    <span>Type: <strong id="device-type">-</strong></span>
+                    <span>&bull;</span>
+                    <span>Connector: <strong id="device-connector">-</strong></span>
+                    <span>&bull;</span>
+                    <span>Last seen: <strong id="device-last-seen">-</strong></span>
+                    <span>&bull;</span>
+                    <span>Latency: <strong id="device-latency">-</strong></span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline" onclick="runTest()"><i class="fas fa-network-wired"></i> Test</button>
+                <button class="btn btn-primary" onclick="runRefresh()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button class="btn btn-outline" style="color:var(--danger); border-color: rgba(248,113,113,0.35);" onclick="deleteDevice()"><i class="fas fa-trash"></i> Delete</button>
+            </div>
+        </div>
+        <div id="action-message" class="inline-msg"></div>
     </div>
 
-    <div id="tab-overview" class="tab-pane" style="padding: 1rem;"></div>
-    <div id="tab-interfaces" class="tab-pane" style="display:none; padding: 1rem;"></div>
-    <div id="tab-arp" class="tab-pane" style="display:none; padding: 1rem;"></div>
-    <div id="tab-mac-table" class="tab-pane" style="display:none; padding: 1rem;"></div>
-    <div id="tab-routes" class="tab-pane" style="display:none; padding: 1rem;"></div>
-    <div id="tab-system" class="tab-pane" style="display:none; padding: 1rem;"></div>
+    <div class="card" style="padding:0;">
+        <div id="tabs" class="tabs-wrap"></div>
+        <div id="tab-content" class="tab-content"></div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const DEVICE_ID = {{ device_id }};
+    const DEVICE_ID = Number("{{ device_id }}") || Number((window.location.pathname.match(/\/devices\/(\d+)/) || [])[1]);
+    const state = {
+        device: null,
+        activeTab: 'overview',
+        tabs: [],
+        tabCache: {},
+    };
 
-    function esc(str) {
+    function esc(v) {
         const d = document.createElement('div');
-        d.textContent = String(str ?? '');
+        d.textContent = String(v ?? '');
         return d.innerHTML;
     }
 
-    function noDataRow(colspan) {
-        return `<tr><td colspan="${colspan}" style="text-align:center; padding: 1.25rem; color: var(--text-muted);">No data available</td></tr>`;
+    async function api(path, options = {}) {
+        try {
+            const res = await fetch(path, {
+                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+                ...options,
+            });
+            const contentType = res.headers.get('content-type') || '';
+            const data = contentType.includes('application/json') ? await res.json() : await res.text();
+            if (!res.ok) return { ok: false, status: res.status, data };
+            return { ok: true, status: res.status, data };
+        } catch (err) {
+            return { ok: false, status: 0, data: { detail: String(err) } };
+        }
     }
 
-    function showTabError(paneId, message) {
-        const pane = document.getElementById(paneId);
-        if (pane) pane.innerHTML = `<p style="color: var(--danger); padding: 1rem;"><i class="fas fa-exclamation-triangle"></i> ${esc(message)}</p>`;
+    function showMessage(text = '', kind = '') {
+        const el = document.getElementById('action-message');
+        el.className = 'inline-msg';
+        if (kind) el.classList.add(kind);
+        el.textContent = text;
+    }
+
+    function statusClass(status) {
+        const s = String(status || 'unknown').toLowerCase();
+        if (s === 'online' || s === 'up') return 'status-online';
+        if (s === 'warning') return 'status-warning';
+        if (s === 'offline' || s === 'down') return 'status-offline';
+        return 'status-unknown';
     }
 
     function statusBadge(status) {
-        const s = esc(status || 'unknown');
-        const up = String(status || '').toLowerCase() === 'up' || String(status || '').toLowerCase() === 'online';
-        return `<span class="status-badge" style="padding: 0.2rem 0.5rem; border-radius: 4px; background: ${up ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${up ? 'var(--success)' : 'var(--danger)'};">${s}</span>`;
+        const s = String(status || 'unknown').toUpperCase();
+        return `<span class="status-badge ${statusClass(status)}">${esc(s)}</span>`;
     }
 
-    function setTab(tabId, btn) {
-        document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        document.getElementById(`tab-${tabId}`).style.display = 'block';
-        btn.classList.add('active');
+    function fmtDate(v) {
+        if (!v) return 'Never';
+        const d = new Date(v);
+        if (Number.isNaN(d.getTime())) return String(v);
+        return d.toLocaleString();
     }
 
-    async function loadOverview() {
-        const [device, status] = await Promise.all([
-            fetchData(`/api/devices/${DEVICE_ID}`),
-            fetchData(`/api/devices/${DEVICE_ID}/status`)
-        ]);
+    function fmtLatency(v) {
+        if (v == null || v === '') return '-';
+        const n = Number(v);
+        if (Number.isNaN(n)) return `${v}`;
+        return `${n.toFixed(2)} ms`;
+    }
 
-        if (device) {
-            document.getElementById('device-title').textContent = device.name || `Device #${DEVICE_ID}`;
-            document.getElementById('device-subtitle').textContent = `${device.ip || device.ip_address || 'Unknown IP'} • ${device.type || device.connector_type || 'unknown'}`;
-        }
+    function normalizeType(rawType) {
+        const t = String(rawType || '').trim().toLowerCase();
+        if (t === 'ap') return 'ap';
+        if (t.includes('mikrotik')) return 'mikrotik';
+        if (t === 'switch') return 'switch';
+        return t || 'unknown';
+    }
 
-        const pane = document.getElementById('tab-overview');
-        if (!device) {
-            showTabError('tab-overview', 'Could not load device data. Please try refreshing.');
-            return;
-        }
+    function tabsForType(type) {
+        if (type === 'mikrotik') return ['overview', 'interfaces', 'arp', 'mac', 'routes', 'system'];
+        if (type === 'ap') return ['overview', 'interfaces', 'system'];
+        if (type === 'switch') return ['overview', 'interfaces', 'system'];
+        return ['overview', 'interfaces', 'system'];
+    }
 
-        pane.innerHTML = `
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem;">
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Name</div><div>${esc(device.name || '-')}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">IP</div><div><code>${esc(device.ip || device.ip_address || '-')}</code></div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Type</div><div>${esc(device.type || '-')}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Connector</div><div>${esc(device.connector_type || '-')}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Status</div><div>${statusBadge(status?.status || device.status)}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Last Connection</div><div>${status?.last_seen ? esc(new Date(status.last_seen).toLocaleString()) : 'Never'}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Latency</div><div>${esc(device.latency_ms || '-')} ms</div></div>
+    function tabLabel(key) {
+        const map = {
+            overview: 'Overview',
+            interfaces: 'Interfaces',
+            arp: 'ARP',
+            mac: 'MAC',
+            routes: 'Routes',
+            system: 'System',
+        };
+        return map[key] || key;
+    }
+
+    function renderHeader() {
+        const d = state.device || {};
+        document.getElementById('device-name').textContent = d.name || `Device #${DEVICE_ID}`;
+        document.getElementById('device-ip').textContent = d.ip || d.ip_address || '-';
+        document.getElementById('device-type').textContent = d.type || '-';
+        document.getElementById('device-connector').textContent = d.connector_type || '-';
+        document.getElementById('device-last-seen').textContent = fmtDate(d.last_seen);
+        document.getElementById('device-latency').textContent = fmtLatency(d?.config_json?.last_latency_ms);
+        const badge = document.getElementById('device-status');
+        badge.className = `status-badge ${statusClass(d.status)}`;
+        badge.textContent = String(d.status || 'unknown').toUpperCase();
+    }
+
+    function renderTabs() {
+        const tabsEl = document.getElementById('tabs');
+        tabsEl.innerHTML = state.tabs.map((t) => `
+            <button class="tab-btn ${state.activeTab === t ? 'active' : ''}" onclick="activateTab('${t}')">${tabLabel(t)}</button>
+        `).join('');
+    }
+
+    function loadingMarkup(msg = 'Loading...') {
+        return `<div class="spinner-row"><span class="spinner"></span><span>${esc(msg)}</span></div>`;
+    }
+
+    function renderCards(items) {
+        return `<div class="cards-grid">${items.map((x) => `
+            <div class="info-card">
+                <div class="info-label">${esc(x.label)}</div>
+                <div class="info-value">${x.value == null || x.value === '' ? '-' : x.value}</div>
             </div>
-        `;
+        `).join('')}</div>`;
     }
 
-    function renderTableTab(paneId, rows, cols, rowBuilder) {
-        const pane = document.getElementById(paneId);
-        if (!rows || rows.length === 0) {
-            pane.innerHTML = `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${noDataRow(cols.length)}</tbody></table>`;
-            return;
+    function renderTable(columns, rows) {
+        const th = columns.map((c) => `<th>${esc(c)}</th>`).join('');
+        const body = rows.length
+            ? rows.map((r) => `<tr>${r.map((c) => `<td>${c == null ? '-' : c}</td>`).join('')}</tr>`).join('')
+            : `<tr><td colspan="${columns.length}" style="text-align:center; color:var(--text-muted);">No data</td></tr>`;
+        return `<div class="table-box"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+
+    function parseErrorDetail(data) {
+        if (!data) return 'Request failed';
+        if (typeof data === 'string') return data;
+        return data.detail || JSON.stringify(data);
+    }
+
+    async function fetchTabData(tab, force = false) {
+        if (!force && state.tabCache[tab]) return state.tabCache[tab];
+        let result;
+        if (tab === 'overview') {
+            result = { ok: true, data: state.device };
+        } else if (tab === 'system') {
+            result = await api(`/api/devices/${DEVICE_ID}/system`);
+        } else if (tab === 'interfaces') {
+            result = await api(`/api/devices/${DEVICE_ID}/interfaces`);
+        } else if (tab === 'arp') {
+            result = await api(`/api/devices/${DEVICE_ID}/arp`);
+        } else if (tab === 'mac') {
+            result = await api(`/api/devices/${DEVICE_ID}/mac-table`);
+        } else if (tab === 'routes') {
+            result = await api(`/api/devices/${DEVICE_ID}/routes`);
+        } else {
+            result = { ok: true, data: {} };
         }
-
-        pane.innerHTML = `
-            <div style="overflow-x: auto;">
-                <table>
-                    <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
-                    <tbody>${rows.map(rowBuilder).join('')}</tbody>
-                </table>
-            </div>
-        `;
+        state.tabCache[tab] = result;
+        return result;
     }
 
-    async function loadInterfaces() {
-        const data = await fetchData(`/api/devices/${DEVICE_ID}/interfaces`);
-        if (data === null) { showTabError('tab-interfaces', 'Failed to load interfaces'); return; }
-        renderTableTab('tab-interfaces', data, ['Name', 'Status', 'Type', 'Speed', 'TX bytes', 'RX bytes'], (i) => `
-            <tr>
-                <td>${esc(i.name || i.interface || '-')}</td>
-                <td>${statusBadge(i.status || i.state)}</td>
-                <td>${esc(i.type || '-')}</td>
-                <td>${esc(i.speed || i.speed_mbps || '-')}</td>
-                <td>${esc(i.tx_bytes ?? i.tx ?? '-')}</td>
-                <td>${esc(i.rx_bytes ?? i.rx ?? '-')}</td>
-            </tr>`);
-    }
-
-    async function loadArp() {
-        const data = await fetchData(`/api/devices/${DEVICE_ID}/arp`);
-        if (data === null) { showTabError('tab-arp', 'Failed to load ARP table'); return; }
-        renderTableTab('tab-arp', data, ['IP', 'MAC', 'Interface', 'Type'], (r) => `
-            <tr><td>${esc(r.ip || '-')}</td><td>${esc(r.mac || '-')}</td><td>${esc(r.interface || '-')}</td><td>${esc(r.type || '-')}</td></tr>
-        `);
-    }
-
-    async function loadMacTable() {
-        const data = await fetchData(`/api/devices/${DEVICE_ID}/mac-table`);
-        if (data === null) { showTabError('tab-mac-table', 'Failed to load MAC table'); return; }
-        renderTableTab('tab-mac-table', data, ['MAC', 'Port', 'VLAN', 'Type'], (r) => `
-            <tr><td>${esc(r.mac || '-')}</td><td>${esc(r.port || r.interface || '-')}</td><td>${esc(r.vlan ?? '-')}</td><td>${esc(r.type || '-')}</td></tr>
-        `);
-    }
-
-    async function loadRoutes() {
-        const data = await fetchData(`/api/devices/${DEVICE_ID}/routes`);
-        if (data === null) { showTabError('tab-routes', 'Failed to load routes'); return; }
-        renderTableTab('tab-routes', data, ['Destination', 'Gateway', 'Metric', 'Protocol', 'Interface'], (r) => `
-            <tr><td>${esc(r.destination || r.dst || '-')}</td><td>${esc(r.gateway || '-')}</td><td>${esc(r.metric ?? '-')}</td><td>${esc(r.protocol || '-')}</td><td>${esc(r.interface || '-')}</td></tr>
-        `);
-    }
-
-    async function loadSystem() {
-        const data = await fetchData(`/api/devices/${DEVICE_ID}/system`);
-        const pane = document.getElementById('tab-system');
-        if (data === null) { showTabError('tab-system', 'Failed to load system info'); return; }
-        if (Object.keys(data).length === 0) {
-            pane.innerHTML = '<p style="color: var(--text-muted);">No data available</p>';
-            return;
-        }
-
-        pane.innerHTML = `
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem;">
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Model</div><div>${esc(data.model || data.board_name || '-')}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">OS Version</div><div>${esc(data.os_version || data.version || '-')}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Uptime</div><div>${esc(data.uptime || '-')}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">CPU</div><div>${esc(data.cpu_usage ?? data.cpu_percent ?? '-')}%</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">RAM</div><div>${esc(data.ram_used ?? data.memory_used ?? '-')} / ${esc(data.ram_total ?? data.memory_total ?? '-')}</div></div>
-                <div class="card"><div style="font-size: 0.8rem; color: var(--text-muted);">Temperature</div><div>${esc(data.temperature ?? data.temp ?? 'N/A')}</div></div>
-            </div>
-        `;
-    }
-
-    async function loadAllTabs() {
-        await Promise.all([
-            loadOverview(),
-            loadInterfaces(),
-            loadArp(),
-            loadMacTable(),
-            loadRoutes(),
-            loadSystem()
+    function renderOverviewTab() {
+        const d = state.device || {};
+        return renderCards([
+            { label: 'Name', value: esc(d.name || '-') },
+            { label: 'IP', value: `<code>${esc(d.ip || d.ip_address || '-')}</code>` },
+            { label: 'Type', value: esc(d.type || '-') },
+            { label: 'Connector', value: esc(d.connector_type || '-') },
+            { label: 'Status', value: statusBadge(d.status) },
+            { label: 'Last Seen', value: esc(fmtDate(d.last_seen)) },
+            { label: 'Latency', value: esc(fmtLatency(d?.config_json?.last_latency_ms)) },
         ]);
     }
 
-    async function refreshAllTabs() {
-        await fetchData(`/api/devices/${DEVICE_ID}/refresh`, { method: 'POST' });
-        await loadAllTabs();
+    function renderSystemTab(data) {
+        const total = data.memory_total || '-';
+        const free = data.memory_free || '-';
+        const ram = `${free} / ${total}`;
+        return renderCards([
+            { label: 'Model', value: esc(data.model || '-') },
+            { label: 'OS Version', value: esc(data.os_version || '-') },
+            { label: 'Uptime', value: esc(data.uptime || '-') },
+            { label: 'CPU', value: esc(data.cpu || '-') },
+            { label: 'RAM (free/total)', value: esc(ram) },
+        ]);
     }
 
-    async function testDevice() {
-        const result = await fetchData(`/api/devices/${DEVICE_ID}/test`, { method: 'POST' });
-        if (result) {
-            alert(result.success ? `Test successful (${result.latency_ms} ms)` : `Test failed: ${result.error || 'Unknown error'}`);
-            await loadOverview();
+    function renderInterfacesTab(items) {
+        const rows = (items || []).map((i) => [
+            esc(i.name || '-'),
+            statusBadge(i.status || 'unknown'),
+            esc(i.speed ?? '-'),
+            `<code>${esc(i.mac || '-')}</code>`,
+            esc(i.ip || '-'),
+            esc(i.tx_bytes ?? 0),
+            esc(i.rx_bytes ?? 0),
+        ]);
+        return renderTable(['Name', 'Status', 'Speed', 'MAC', 'IP', 'TX Bytes', 'RX Bytes'], rows);
+    }
+
+    function renderArpTab(items) {
+        const rows = (items || []).map((x) => [esc(x.ip || '-'), `<code>${esc(x.mac || '-')}</code>`, esc(x.interface || x.iface || '-')]);
+        return renderTable(['IP', 'MAC', 'Interface'], rows);
+    }
+
+    function renderMacTab(items) {
+        const rows = (items || []).map((x) => [
+            `<code>${esc(x.mac || '-')}</code>`,
+            esc(x.interface || x.port || '-'),
+            esc(x.vlan ?? '-'),
+            esc(x.type || '-'),
+        ]);
+        return renderTable(['MAC', 'Interface', 'VLAN', 'Type'], rows);
+    }
+
+    function renderRoutesTab(items) {
+        const rows = (items || []).map((x) => [
+            esc(x.destination || x.dst || '-'),
+            esc(x.gateway || '-'),
+            esc(x.interface || '-'),
+            esc(x.distance ?? '-'),
+        ]);
+        return renderTable(['Destination', 'Gateway', 'Interface', 'Distance'], rows);
+    }
+
+    async function renderActiveTab(force = false) {
+        const content = document.getElementById('tab-content');
+        const tab = state.activeTab;
+        content.innerHTML = loadingMarkup(`Loading ${tabLabel(tab)}...`);
+
+        const res = await fetchTabData(tab, force);
+        if (!res.ok) {
+            const detail = parseErrorDetail(res.data);
+            const canLoad = (tab === 'arp' || tab === 'mac' || tab === 'routes') && res.status === 404;
+            content.innerHTML = `
+                <div class="inline-msg error">${esc(detail)}</div>
+                ${canLoad ? '<button class="btn btn-primary" style="margin-top:0.7rem;" onclick="loadDataForNoDataTab()">Load Data</button>' : ''}
+            `;
+            return;
         }
+
+        const data = res.data;
+        if (tab === 'overview') content.innerHTML = renderOverviewTab();
+        else if (tab === 'system') content.innerHTML = renderSystemTab(data || {});
+        else if (tab === 'interfaces') content.innerHTML = renderInterfacesTab(data || []);
+        else if (tab === 'arp') content.innerHTML = renderArpTab(data || []);
+        else if (tab === 'mac') content.innerHTML = renderMacTab(data || []);
+        else if (tab === 'routes') content.innerHTML = renderRoutesTab(data || []);
+        else content.innerHTML = '<div class="inline-msg warning">Tab not implemented</div>';
     }
 
-    function editDevice() {
-        window.location.href = `/devices?id=${DEVICE_ID}`;
+    async function activateTab(tab) {
+        state.activeTab = tab;
+        renderTabs();
+        await renderActiveTab(false);
+    }
+
+    async function loadDevice() {
+        const res = await api(`/api/devices/${DEVICE_ID}`);
+        if (!res.ok) {
+            document.getElementById('tab-content').innerHTML = `<div class="inline-msg error">Could not load device detail: ${esc(parseErrorDetail(res.data))}</div>`;
+            return false;
+        }
+
+        state.device = res.data;
+        state.tabCache = {};
+        state.tabs = tabsForType(normalizeType(state.device.type));
+        if (!state.tabs.includes(state.activeTab)) state.activeTab = state.tabs[0] || 'overview';
+        renderHeader();
+        renderTabs();
+        return true;
+    }
+
+    async function runTest() {
+        showMessage('Running connectivity test...', 'warning');
+        const res = await api(`/api/devices/${DEVICE_ID}/test`, { method: 'POST' });
+        if (!res.ok) {
+            showMessage(`Test failed: ${parseErrorDetail(res.data)}`, 'error');
+            return;
+        }
+        const d = res.data || {};
+        showMessage(d.success ? `Connectivity OK (${fmtLatency(d.latency_ms)})` : `Connectivity failed: ${d.error || 'Unknown error'}`, d.success ? 'success' : 'error');
+        await loadDevice();
+        await renderActiveTab(true);
+    }
+
+    async function runRefresh() {
+        showMessage('Refreshing device data...', 'warning');
+        const res = await api(`/api/devices/${DEVICE_ID}/refresh`, { method: 'POST' });
+        if (!res.ok) {
+            showMessage(`Refresh failed: ${parseErrorDetail(res.data)}`, 'error');
+            return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        state.tabCache = {};
+        await loadDevice();
+        await renderActiveTab(true);
+        showMessage('Refresh complete.', 'success');
+    }
+
+    async function loadDataForNoDataTab() {
+        await runRefresh();
     }
 
     async function deleteDevice() {
         if (!confirm('Are you sure you want to delete this device?')) return;
-        const result = await fetchData(`/api/devices/${DEVICE_ID}`, { method: 'DELETE' });
-        if (result) {
-            window.location.href = '/devices';
+        const res = await api(`/api/devices/${DEVICE_ID}`, { method: 'DELETE' });
+        if (!res.ok) {
+            showMessage(`Delete failed: ${parseErrorDetail(res.data)}`, 'error');
+            return;
         }
+        window.location.href = '/devices';
     }
 
     async function refreshPageData() {
-        await loadAllTabs();
+        const ok = await loadDevice();
+        if (!ok) return;
+        await renderActiveTab(false);
     }
 </script>
 {% endblock %}
