@@ -4,8 +4,120 @@
 {% block page_title %}Remote Agents{% endblock %}
 
 {% block content %}
+<style>
+    .ad-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .ad-summary-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.8rem;
+        text-align: center;
+    }
+
+    .ad-summary-value {
+        font-size: 1.3rem;
+        font-weight: 700;
+    }
+
+    .ad-summary-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+    }
+
+    .ad-tabs {
+        display: flex;
+        gap: 0.5rem;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.6rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .ad-tab-btn {
+        border: 1px solid var(--border);
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        padding: 0.4rem 0.7rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.82rem;
+    }
+
+    .ad-tab-btn.active {
+        background: rgba(59, 130, 246, 0.15);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .ad-toolbar {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+        align-items: center;
+    }
+
+    .ad-toolbar select,
+    .ad-toolbar input {
+        max-width: 260px;
+    }
+
+    .ad-badge {
+        padding: 0.16rem 0.46rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        border: 1px solid transparent;
+    }
+
+    .ad-badge.success {
+        color: var(--success);
+        background: rgba(74, 222, 128, 0.1);
+        border-color: rgba(74, 222, 128, 0.25);
+    }
+
+    .ad-badge.danger {
+        color: var(--danger);
+        background: rgba(248, 113, 113, 0.1);
+        border-color: rgba(248, 113, 113, 0.25);
+    }
+
+    .ad-badge.warning {
+        color: var(--warning);
+        background: rgba(250, 204, 21, 0.1);
+        border-color: rgba(250, 204, 21, 0.25);
+    }
+
+    .pagination-wrap {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0.7rem;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .findings-check {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0.8rem;
+        margin-bottom: 0.7rem;
+        background: var(--bg-secondary);
+    }
+
+    .findings-check h4 {
+        margin: 0 0 0.5rem;
+        font-size: 0.9rem;
+    }
+</style>
+
 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
-    <!-- Agents List -->
     <div class="card" style="padding: 0;">
         <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
             <h3 style="margin: 0;">Registered Agents</h3>
@@ -24,19 +136,16 @@
                 </thead>
                 <tbody id="agents-body">
                     <tr>
-                        <td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No agents
-                            registered</td>
+                        <td colspan="6" style="text-align:center; padding: 2rem; color: var(--text-muted);">No agents registered</td>
                     </tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Detailed View Container -->
-        <div id="ad-detailed-view" style="display: none; border-top: 1px solid var(--border); margin-top: 1rem;">
+        <div id="ad-detailed-view" style="display: none; border-top: 1px solid var(--border); margin-top: 1rem; padding: 1.2rem;">
         </div>
     </div>
 
-    <!-- Agent Downloads & Info -->
     <div class="sidebar">
         <div class="card">
             <h3>Deploy New Agent</h3>
@@ -46,8 +155,7 @@
 
             <div style="margin-bottom: 1rem;">
                 <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">Windows AD Agent</h4>
-                <a href="/api/agents/download/windows_ad" class="btn btn-outline"
-                    style="width: 100%; margin-bottom: 0.5rem;">
+                <a href="/api/agents/download/windows_ad" class="btn btn-outline" style="width: 100%; margin-bottom: 0.5rem;">
                     <i class="fab fa-windows"></i> Download Agent Package (.zip)
                 </a>
                 <p style="font-size: 0.75rem; color: var(--text-muted);">
@@ -57,18 +165,12 @@
 
             <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
                 <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Auth Token</h4>
-                <div
-                    style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem; border: 1px solid var(--border); overflow-x: auto; display: flex; gap: 0.5rem; align-items: center;">
-                    <input id="auth-token" type="password" value="{{ agent_auth_token }}" readonly
-                        style="flex: 1; font-family: monospace; background: transparent; border: none; outline: none; color: inherit; font-size: inherit; padding: 0; min-width: 0;">
-                    <button class="btn btn-outline"
-                        style="padding: 0.2rem 0.5rem; font-size: 0.8rem; height: 28px; width: 28px; display: flex; align-items: center; justify-content: center;"
-                        onclick="toggleToken()" title="Show/Hide">
+                <div style="background: var(--bg-secondary); padding: 0.75rem; border-radius: 8px; font-family: monospace; font-size: 0.8rem; border: 1px solid var(--border); overflow-x: auto; display: flex; gap: 0.5rem; align-items: center;">
+                    <input id="auth-token" type="password" value="{{ agent_auth_token }}" readonly style="flex: 1; font-family: monospace; background: transparent; border: none; outline: none; color: inherit; font-size: inherit; padding: 0; min-width: 0;">
+                    <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; height: 28px; width: 28px; display: flex; align-items: center; justify-content: center;" onclick="toggleToken()" title="Show/Hide">
                         <i id="token-eye" class="fas fa-eye"></i>
                     </button>
-                    <button class="btn btn-outline"
-                        style="padding: 0.2rem 0.5rem; font-size: 0.8rem; height: 28px; width: 28px; display: flex; align-items: center; justify-content: center;"
-                        onclick="copyToken(event)" title="Copy">
+                    <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.8rem; height: 28px; width: 28px; display: flex; align-items: center; justify-content: center;" onclick="copyToken(event)" title="Copy">
                         <i class="fas fa-copy"></i>
                     </button>
                 </div>
@@ -83,6 +185,32 @@
 
 {% block scripts %}
 <script>
+    const AD_STATE = {
+        agentId: null,
+        activeTab: 'users',
+        usersFilter: 'all',
+        usersSearch: '',
+        usersPage: 1,
+        groupsPage: 1,
+        computersPage: 1,
+        pageSize: 20,
+        payload: null
+    };
+
+    const PRIVILEGED_GROUPS = new Set([
+        'domain admins',
+        'enterprise admins',
+        'schema admins',
+        'account operators',
+        'administrators'
+    ]);
+
+    function esc(v) {
+        const d = document.createElement('div');
+        d.textContent = String(v ?? '');
+        return d.innerHTML;
+    }
+
     function toggleToken() {
         const input = document.getElementById('auth-token');
         const icon = document.getElementById('token-eye');
@@ -108,52 +236,38 @@
             icon.style.color = '';
         }, 1500);
     }
+
     function calculateAgentStatus(lastHeartbeat) {
         if (!lastHeartbeat) {
             return { label: 'inactive', color: 'var(--danger)', bg: 'rgba(248, 113, 113, 0.1)' };
         }
 
-        const heartbeatDate = new Date(lastHeartbeat);
-        const ageMs = Date.now() - heartbeatDate.getTime();
-
+        const ageMs = Date.now() - new Date(lastHeartbeat).getTime();
         if (ageMs > 5 * 60 * 1000) {
             return { label: 'stale', color: 'var(--warning)', bg: 'rgba(250, 204, 21, 0.1)' };
         }
-
         return { label: 'active', color: 'var(--success)', bg: 'rgba(74, 222, 128, 0.1)' };
     }
 
     async function refreshPageData() {
         const agents = await fetchData('/api/agents/');
         const body = document.getElementById('agents-body');
-
         if (!agents) return;
 
         const agentsWithStatus = await Promise.all(agents.map(async (agent) => {
             const statusData = await fetchData(`/api/agents/${agent.id}/status`);
             const heartbeat = statusData?.last_heartbeat || agent.last_heartbeat;
-            return {
-                ...agent,
-                last_heartbeat: heartbeat,
-                computed: calculateAgentStatus(heartbeat)
-            };
+            return { ...agent, last_heartbeat: heartbeat, computed: calculateAgentStatus(heartbeat) };
         }));
 
-        body.innerHTML = agentsWithStatus.length === 0 ?
-            '<tr><td colspan="6" style="text-align:center; padding: 2rem;">No agents registered.</td></tr>' :
-            agentsWithStatus.map(a => `
+        body.innerHTML = agentsWithStatus.length === 0
+            ? '<tr><td colspan="6" style="text-align:center; padding: 2rem;">No agents registered.</td></tr>'
+            : agentsWithStatus.map(a => `
                 <tr style="cursor: pointer;" onclick="loadAgentAudit(${a.id}, '${a.type}')">
-                    <td><strong>${a.name}</strong></td>
-                    <td>
-                        <code>${a.hostname || 'Unknown Host'}</code><br>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">${a.ip || 'No IP'}</span>
-                    </td>
-                    <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${a.type}</span></td>
-                    <td>
-                        <span class="status-badge" style="padding: 0.2rem 0.5rem; background: ${a.computed.bg}; color: ${a.computed.color}; border: 1px solid ${a.computed.bg};">
-                            ${a.computed.label.toUpperCase()}
-                        </span>
-                    </td>
+                    <td><strong>${esc(a.name)}</strong></td>
+                    <td><code>${esc(a.hostname || 'Unknown Host')}</code><br><span style="font-size: 0.75rem; color: var(--text-muted);">${esc(a.ip || 'No IP')}</span></td>
+                    <td><span style="font-size: 0.8rem; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">${esc(a.type)}</span></td>
+                    <td><span class="status-badge" style="padding: 0.2rem 0.5rem; background: ${a.computed.bg}; color: ${a.computed.color}; border: 1px solid ${a.computed.bg};">${a.computed.label.toUpperCase()}</span></td>
                     <td style="font-size: 0.8rem; color: var(--text-muted);">${a.last_heartbeat ? new Date(a.last_heartbeat).toLocaleString() : 'Never'}</td>
                     <td>
                         <button class="btn btn-outline" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" onclick='removeAgent(event, ${a.id}, ${JSON.stringify(a.name || "agent")})'>
@@ -166,110 +280,270 @@
 
     async function removeAgent(event, agentId, agentName) {
         event.stopPropagation();
-        if (!confirm(`¿Eliminar agente ${agentName}? Esta acción no se puede deshacer.`)) {
-            return;
+        if (!confirm(`Eliminar agente ${agentName}?`)) return;
+        const result = await fetchData(`/api/agents/${agentId}`, { method: 'DELETE' });
+        if (result) refreshData();
+    }
+
+    function isStale(lastLogon) {
+        if (!lastLogon) return true;
+        const d = new Date(lastLogon);
+        if (Number.isNaN(d.getTime())) return true;
+        const ageDays = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
+        return ageDays >= 90;
+    }
+
+    function userRow(u) {
+        const enabled = !!u.enabled;
+        const locked = !!u.locked;
+        const enabledBadge = enabled ? '<span class="ad-badge success">Enabled</span>' : '<span class="ad-badge danger">Disabled</span>';
+        const lockedBadge = locked ? '<span class="ad-badge warning">Locked</span>' : '<span class="ad-badge">No</span>';
+        return `
+            <tr>
+                <td><strong>${esc(u.sAMAccountName || '')}</strong></td>
+                <td>${esc(u.displayName || '')}</td>
+                <td>${esc(u.mail || '-')}</td>
+                <td>${enabledBadge}</td>
+                <td>${lockedBadge}</td>
+                <td>${u.lastLogon ? esc(new Date(u.lastLogon).toLocaleString()) : 'Never'}</td>
+                <td>${u.passwordNeverExpires ? '<span class="ad-badge warning">Yes</span>' : 'No'}</td>
+            </tr>
+        `;
+    }
+
+    function paginate(items, page, size) {
+        const totalPages = Math.max(1, Math.ceil(items.length / size));
+        const current = Math.min(Math.max(page, 1), totalPages);
+        const start = (current - 1) * size;
+        return {
+            pageItems: items.slice(start, start + size),
+            page: current,
+            totalPages,
+            total: items.length
+        };
+    }
+
+    function renderPagination(kind, meta) {
+        return `
+            <div class="pagination-wrap">
+                <span>${meta.total} item(s) | Page ${meta.page}/${meta.totalPages}</span>
+                <div style="display:flex; gap:0.4rem;">
+                    <button class="btn btn-outline" style="padding:0.25rem 0.6rem;" ${meta.page <= 1 ? 'disabled' : ''} onclick="changePage('${kind}', ${meta.page - 1})">Prev</button>
+                    <button class="btn btn-outline" style="padding:0.25rem 0.6rem;" ${meta.page >= meta.totalPages ? 'disabled' : ''} onclick="changePage('${kind}', ${meta.page + 1})">Next</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function changePage(kind, value) {
+        if (kind === 'users') AD_STATE.usersPage = value;
+        if (kind === 'groups') AD_STATE.groupsPage = value;
+        if (kind === 'computers') AD_STATE.computersPage = value;
+        renderAdView();
+    }
+
+    function setTab(tab) {
+        AD_STATE.activeTab = tab;
+        renderAdView();
+    }
+
+    function renderUsersTab(data) {
+        const users = data.users || [];
+        const q = (AD_STATE.usersSearch || '').toLowerCase().trim();
+        const filter = AD_STATE.usersFilter;
+
+        let filtered = users.filter(u => {
+            if (q) {
+                const hay = `${u.sAMAccountName || ''} ${u.displayName || ''} ${u.mail || ''}`.toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+
+            if (filter === 'enabled') return !!u.enabled;
+            if (filter === 'disabled') return !u.enabled;
+            if (filter === 'locked') return !!u.locked;
+            if (filter === 'stale') return isStale(u.lastLogon);
+            return true;
+        });
+
+        filtered.sort((a, b) => {
+            const ad = a.lastLogon ? new Date(a.lastLogon).getTime() : 0;
+            const bd = b.lastLogon ? new Date(b.lastLogon).getTime() : 0;
+            return ad - bd; // older/inactive first
+        });
+
+        const meta = paginate(filtered, AD_STATE.usersPage, AD_STATE.pageSize);
+        AD_STATE.usersPage = meta.page;
+
+        return `
+            <div class="ad-toolbar">
+                <select onchange="AD_STATE.usersFilter=this.value; AD_STATE.usersPage=1; renderAdView();">
+                    <option value="all" ${filter === 'all' ? 'selected' : ''}>All</option>
+                    <option value="enabled" ${filter === 'enabled' ? 'selected' : ''}>Enabled</option>
+                    <option value="disabled" ${filter === 'disabled' ? 'selected' : ''}>Disabled</option>
+                    <option value="locked" ${filter === 'locked' ? 'selected' : ''}>Locked</option>
+                    <option value="stale" ${filter === 'stale' ? 'selected' : ''}>Stale</option>
+                </select>
+                <input type="text" placeholder="Search user..." value="${esc(AD_STATE.usersSearch)}" oninput="AD_STATE.usersSearch=this.value; AD_STATE.usersPage=1; renderAdView();">
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>sAMAccountName</th>
+                            <th>Display Name</th>
+                            <th>Email</th>
+                            <th>Enabled</th>
+                            <th>Locked</th>
+                            <th>Last Logon</th>
+                            <th>Password Never Expires</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${meta.pageItems.length ? meta.pageItems.map(userRow).join('') : '<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No users found</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            ${renderPagination('users', meta)}
+        `;
+    }
+
+    function renderGroupsTab(data) {
+        const groups = (data.groups || []).slice().sort((a, b) => (b.memberCount || 0) - (a.memberCount || 0));
+        const meta = paginate(groups, AD_STATE.groupsPage, AD_STATE.pageSize);
+        AD_STATE.groupsPage = meta.page;
+
+        return `
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>Name</th><th>Members</th><th>Scope</th></tr></thead>
+                    <tbody>
+                        ${meta.pageItems.length ? meta.pageItems.map(g => {
+                            const privileged = PRIVILEGED_GROUPS.has(String(g.name || '').toLowerCase());
+                            return `<tr>
+                                <td>${privileged ? '<span class="ad-badge warning">Privileged</span> ' : ''}<strong>${esc(g.name || '')}</strong></td>
+                                <td>${esc(g.memberCount ?? 0)}</td>
+                                <td>${esc(g.scope || '')}</td>
+                            </tr>`;
+                        }).join('') : '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No groups found</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            ${renderPagination('groups', meta)}
+        `;
+    }
+
+    function renderComputersTab(data) {
+        const computers = (data.computers || []).slice().sort((a, b) => {
+            const ad = a.lastLogon ? new Date(a.lastLogon).getTime() : 0;
+            const bd = b.lastLogon ? new Date(b.lastLogon).getTime() : 0;
+            return ad - bd;
+        });
+        const meta = paginate(computers, AD_STATE.computersPage, AD_STATE.pageSize);
+        AD_STATE.computersPage = meta.page;
+
+        return `
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>Name</th><th>OS</th><th>Last Logon</th></tr></thead>
+                    <tbody>
+                        ${meta.pageItems.length ? meta.pageItems.map(c => `
+                            <tr>
+                                <td><strong>${esc(c.name || '')}</strong></td>
+                                <td>${esc(c.os || '-')}</td>
+                                <td>${c.lastLogon ? esc(new Date(c.lastLogon).toLocaleString()) : 'Never'}</td>
+                            </tr>
+                        `).join('') : '<tr><td colspan="3" style="text-align:center; color:var(--text-muted);">No computers found</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            ${renderPagination('computers', meta)}
+        `;
+    }
+
+    function renderFindingsTab(payload) {
+        const checks = payload.checks || [];
+        if (!checks.length) {
+            return '<p style="color:var(--text-muted);">No findings available.</p>';
         }
 
-        const result = await fetchData(`/api/agents/${agentId}`, { method: 'DELETE' });
-        if (result) {
-            refreshData();
-        }
+        return checks.map(chk => {
+            const s = String(chk.status || 'pass').toLowerCase();
+            const cls = s === 'critical' ? 'danger' : s === 'warning' ? 'warning' : 'success';
+            const findings = chk.findings || [];
+            return `
+                <div class="findings-check">
+                    <h4>${esc(chk.name || 'Check')} <span class="ad-badge ${cls}">${esc(s.toUpperCase())}</span></h4>
+                    ${findings.length ? `<ul style="margin:0; padding-left:1.1rem;">${findings.map(f => `<li style="margin-bottom:0.2rem;">${esc(f)}</li>`).join('')}</ul>` : '<span style="color:var(--text-muted);">No issues detected</span>'}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderAdView() {
+        const view = document.getElementById('ad-detailed-view');
+        const payload = AD_STATE.payload;
+        if (!payload) return;
+
+        const summary = payload.summary || {};
+        const data = payload.data || {};
+        const users = data.users || [];
+        const groups = data.groups || [];
+        const computers = data.computers || [];
+        const gpos = data.gpos || [];
+
+        const tabButtons = ['users', 'groups', 'computers', 'findings'].map(tab => `
+            <button class="ad-tab-btn ${AD_STATE.activeTab === tab ? 'active' : ''}" onclick="setTab('${tab}')">${tab.charAt(0).toUpperCase() + tab.slice(1)}</button>
+        `).join('');
+
+        let tabContent = '';
+        if (AD_STATE.activeTab === 'users') tabContent = renderUsersTab(data);
+        if (AD_STATE.activeTab === 'groups') tabContent = renderGroupsTab(data);
+        if (AD_STATE.activeTab === 'computers') tabContent = renderComputersTab(data);
+        if (AD_STATE.activeTab === 'findings') tabContent = renderFindingsTab(payload);
+
+        view.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem; gap:0.8rem; flex-wrap:wrap;">
+                <h3 style="margin:0; color: var(--accent);">Active Directory Detail (Agent #${AD_STATE.agentId})</h3>
+                <span style="font-size:0.8rem; color:var(--text-muted);">Last audit: ${payload.completed_at ? esc(new Date(payload.completed_at).toLocaleString()) : '-'}</span>
+            </div>
+
+            <div class="ad-summary-grid">
+                <div class="ad-summary-card"><div class="ad-summary-value">${summary.total_users ?? users.length}</div><div class="ad-summary-label">Total Users</div></div>
+                <div class="ad-summary-card"><div class="ad-summary-value">${summary.total_groups ?? groups.length}</div><div class="ad-summary-label">Groups</div></div>
+                <div class="ad-summary-card"><div class="ad-summary-value">${summary.total_computers ?? computers.length}</div><div class="ad-summary-label">Computers</div></div>
+                <div class="ad-summary-card"><div class="ad-summary-value">${summary.total_gpos ?? gpos.length}</div><div class="ad-summary-label">GPOs</div></div>
+                <div class="ad-summary-card" style="border-color: rgba(248, 113, 113, 0.3);"><div class="ad-summary-value" style="color: var(--danger);">${summary.vulnerabilities ?? 0}</div><div class="ad-summary-label">Vulnerabilities</div></div>
+            </div>
+
+            <div class="ad-tabs">${tabButtons}</div>
+            ${tabContent}
+        `;
+
+        view.style.display = 'block';
     }
 
     async function loadAgentAudit(agentId, type) {
-        if (type !== 'windows_ad') return; // For now only handle AD
+        if (type !== 'windows_ad') return;
 
-        try {
-            const audits = await fetchData(`/api/audit/results/?limit=10`);
-            const agentAudit = audits.find(a => a.agent_id === agentId);
-            const viewDiv = document.getElementById('ad-detailed-view');
+        const view = document.getElementById('ad-detailed-view');
+        view.style.display = 'block';
+        view.innerHTML = '<div style="padding: 1rem; color: var(--text-muted);">Loading AD audit data...</div>';
 
-            if (!agentAudit || !agentAudit.result_json || !agentAudit.result_json.data) {
-                viewDiv.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-muted);">No AD audit details available yet for this agent. Ensure the agent has run at least one audit.</div>';
-                viewDiv.style.display = 'block';
-                return;
-            }
-
-            const summary = agentAudit.result_json.summary || {};
-            const users = agentAudit.result_json.data.users || [];
-
-            let html = `
-                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border);">
-                    <h3 style="margin: 0; color: var(--accent);">Active Directory Overview</h3>
-                </div>
-                <div style="padding: 1.5rem; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem;">
-                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                        <div style="font-size: 1.5rem; color: var(--accent); margin-bottom: 0.5rem;">${summary.total_users || users.length || 0}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">Total Users</div>
-                    </div>
-                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${summary.total_groups || 0}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">Total Groups</div>
-                    </div>
-                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${summary.total_computers || 0}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">Computers</div>
-                    </div>
-                    <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 8px; border: 1px solid var(--border); text-align: center;">
-                        <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${summary.total_gpos || 0}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">GPOs</div>
-                    </div>
-                    <div style="background: rgba(248, 113, 113, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(248, 113, 113, 0.2); text-align: center;">
-                        <div style="font-size: 1.5rem; color: var(--danger); margin-bottom: 0.5rem;">${summary.vulnerabilities || 0}</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">Vulnerabilities</div>
-                    </div>
-                </div>
-                
-                <div style="padding: 1.5rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
-                    <h3 style="margin: 0;">AD Users</h3>
-                </div>
-                <div style="overflow-x: auto;">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Username</th>
-                                <th>Display Name</th>
-                                <th>Email</th>
-                                <th>Status</th>
-                                <th>Locked</th>
-                                <th>Last Logon</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${users.length === 0 ? '<tr><td colspan="6" style="text-align:center;">No users found in AD data.</td></tr>' :
-                    users.slice(0, 50).map(u => {
-                        const isEnabled = (u.userAccountControl & 2) === 0;
-                        const isLocked = u.lockoutTime && u.lockoutTime > 0;
-                        return `
-                                <tr>
-                                    <td><strong>${u.sAMAccountName || ''}</strong></td>
-                                    <td>${u.displayName || u.cn || ''}</td>
-                                    <td><span style="font-size: 0.8rem; color: var(--text-secondary);">${u.mail || '-'}</span></td>
-                                    <td>
-                                        <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: ${isEnabled ? 'rgba(74, 222, 128, 0.1)' : 'rgba(248, 113, 113, 0.1)'}; color: ${isEnabled ? 'var(--success)' : 'var(--danger)'};">
-                                            ${isEnabled ? 'Enabled' : 'Disabled'}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; ${isLocked ? 'background: rgba(250, 204, 21, 0.1); color: var(--warning);' : 'color: var(--text-muted);'}">
-                                            ${isLocked ? 'Locked' : 'No'}
-                                        </span>
-                                    </td>
-                                    <td style="font-size: 0.8rem; color: var(--text-muted);">${u.lastLogonTimestamp ? new Date(u.lastLogonTimestamp).toLocaleString() : 'Never'}</td>
-                                </tr>
-                            `}).join('')}
-                        </tbody>
-                    </table>
-                    ${users.length > 50 ? '<div style="padding: 1rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">Showing first 50 users.</div>' : ''}
-                </div>
-            `;
-
-            viewDiv.innerHTML = html;
-            viewDiv.style.display = 'block';
-
-        } catch (err) {
-            console.error("Failed to load AD details", err);
+        const payload = await fetchData(`/api/agents/${agentId}/ad-data`);
+        if (!payload || !payload.data) {
+            view.innerHTML = '<div style="padding: 1rem; color: var(--text-muted);">No AD audit details available yet for this agent.</div>';
+            return;
         }
+
+        AD_STATE.agentId = agentId;
+        AD_STATE.payload = payload;
+        AD_STATE.activeTab = 'users';
+        AD_STATE.usersFilter = 'all';
+        AD_STATE.usersSearch = '';
+        AD_STATE.usersPage = 1;
+        AD_STATE.groupsPage = 1;
+        AD_STATE.computersPage = 1;
+        renderAdView();
     }
 </script>
 {% endblock %}
