@@ -129,6 +129,205 @@
             </div>
         </form>
     </div>
+    .device-detail-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .device-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .device-meta {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 0.4rem;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+
+    .detail-actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .detail-tabs {
+        display: flex;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .detail-tab {
+        padding: 0.85rem 1rem;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        white-space: nowrap;
+        border-bottom: 2px solid transparent;
+    }
+
+    .detail-tab.active {
+        color: var(--text-primary);
+        border-bottom-color: var(--accent);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .detail-pane {
+        display: none;
+        padding: 1rem;
+    }
+
+    .detail-pane.active {
+        display: block;
+    }
+
+    .kv-grid {
+        display: grid;
+        gap: 0.85rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .kv-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.85rem;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .kv-card .k {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-bottom: 0.3rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .kv-card .v {
+        font-size: 0.95rem;
+        color: var(--text-primary);
+        word-break: break-word;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+    }
+
+    .table-wrap table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .table-wrap th,
+    .table-wrap td {
+        text-align: left;
+        padding: 0.65rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+    }
+
+    .table-wrap tr:last-child td {
+        border-bottom: none;
+    }
+
+    .badge-inline {
+        border-radius: 999px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.78rem;
+        border: 1px solid transparent;
+    }
+
+    .badge-online {
+        color: #49d17d;
+        border-color: rgba(73, 209, 125, 0.4);
+        background: rgba(73, 209, 125, 0.08);
+    }
+
+    .badge-warning {
+        color: #f2c14e;
+        border-color: rgba(242, 193, 78, 0.4);
+        background: rgba(242, 193, 78, 0.09);
+    }
+
+    .badge-offline {
+        color: #f77777;
+        border-color: rgba(247, 119, 119, 0.4);
+        background: rgba(247, 119, 119, 0.08);
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .pane-loading {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        color: var(--text-muted);
+        padding: 0.8rem 0;
+    }
+
+    pre.config-pre {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.85rem;
+        overflow: auto;
+        margin: 0;
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+</style>
+
+<div class="device-detail-shell">
+    <div class="card device-top">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                <a href="/devices" class="btn btn-outline" style="padding: 0.45rem 0.75rem;">
+                    <i class="fas fa-arrow-left"></i> Back to Devices
+                </a>
+                <h3 id="device-name" style="margin: 0;">Device #{{ device_id }}</h3>
+                <span id="device-status-badge" class="badge-inline">unknown</span>
+            </div>
+            <div class="device-meta">
+                <span>IP: <code id="device-ip">-</code></span>
+                <span>Type: <strong id="device-type">-</strong></span>
+                <span>Connector: <strong id="device-connector">-</strong></span>
+                <span>Last seen: <strong id="device-last-seen">-</strong></span>
+            </div>
+        </div>
+
+        <div class="detail-actions">
+            <button class="btn btn-outline" onclick="runTest()"><i class="fas fa-network-wired"></i> Test</button>
+            <button class="btn btn-primary" onclick="refreshLiveData()"><i class="fas fa-sync-alt"></i> Refresh</button>
+        </div>
+    </div>
+
+    <div class="card" style="padding: 0;">
+        <div id="tabs" class="detail-tabs"></div>
+        <div id="panes"></div>
+    </div>
 </div>
 {% endblock %}
 
@@ -258,6 +457,112 @@
             <div class="info-card">
                 <div class="info-label">${esc(x.label)}</div>
                 <div class="info-value">${x.value == null || x.value === '' ? '-' : x.value}</div>
+    const DEVICE_ID = {{ device_id }};
+    const state = {
+        detail: null,
+        live: null,
+        history: null,
+        activeTab: 'overview'
+    };
+
+    function esc(v) {
+        const div = document.createElement('div');
+        div.textContent = String(v ?? '');
+        return div.innerHTML;
+    }
+
+    function statusClass(status) {
+        const s = String(status || 'unknown').toLowerCase();
+        if (s === 'online' || s === 'up') return 'badge-online';
+        if (s === 'warning') return 'badge-warning';
+        return 'badge-offline';
+    }
+
+    function statusBadge(status) {
+        const s = String(status || 'unknown').toLowerCase();
+        return `<span class="badge-inline ${statusClass(s)}">${esc(s)}</span>`;
+    }
+
+    function loadingMarkup(message = 'Loading data...') {
+        return `<div class="pane-loading"><span class="spinner"></span><span>${esc(message)}</span></div>`;
+    }
+
+    function tabsForFamily(family) {
+        if (family === 'mikrotik') {
+            return [
+                ['overview', 'Overview'],
+                ['interfaces', 'Interfaces'],
+                ['routing', 'Routing'],
+                ['config', 'Config'],
+                ['history', 'History']
+            ];
+        }
+        if (family === 'ap') {
+            return [
+                ['overview', 'Overview'],
+                ['wireless', 'Wireless'],
+                ['clients', 'Clients'],
+                ['radio', 'Radio'],
+                ['config', 'Config'],
+                ['history', 'History']
+            ];
+        }
+        if (family === 'switch') {
+            return [
+                ['overview', 'Overview'],
+                ['interfaces', 'Interfaces'],
+                ['config', 'Config'],
+                ['history', 'History']
+            ];
+        }
+        return [
+            ['overview', 'Overview'],
+            ['config', 'Config'],
+            ['history', 'History']
+        ];
+    }
+
+    function setHeader(detail) {
+        document.getElementById('device-name').textContent = detail.name || `Device #${DEVICE_ID}`;
+        document.getElementById('device-ip').textContent = detail.ip || '-';
+        document.getElementById('device-type').textContent = detail.type || detail.device_family || '-';
+        document.getElementById('device-connector').textContent = detail.connector_type || '-';
+        document.getElementById('device-last-seen').textContent = detail.last_seen ? new Date(detail.last_seen).toLocaleString() : 'Never';
+
+        const badge = document.getElementById('device-status-badge');
+        badge.className = `badge-inline ${statusClass(detail.status)}`;
+        badge.textContent = String(detail.status || 'unknown').toUpperCase();
+    }
+
+    function buildTabs(detail) {
+        const tabs = tabsForFamily(detail.device_family);
+        const tabsEl = document.getElementById('tabs');
+        const panesEl = document.getElementById('panes');
+
+        tabsEl.innerHTML = tabs.map(([id, label], idx) => `
+            <button class="detail-tab ${idx === 0 ? 'active' : ''}" data-tab="${id}" onclick="activateTab('${id}')">${label}</button>
+        `).join('');
+
+        panesEl.innerHTML = tabs.map(([id], idx) => `
+            <section id="pane-${id}" class="detail-pane ${idx === 0 ? 'active' : ''}">${loadingMarkup('Preparing tab...')}</section>
+        `).join('');
+    }
+
+    function activateTab(tabId) {
+        state.activeTab = tabId;
+        document.querySelectorAll('.detail-tab').forEach((el) => {
+            el.classList.toggle('active', el.dataset.tab === tabId);
+        });
+        document.querySelectorAll('.detail-pane').forEach((el) => {
+            el.classList.toggle('active', el.id === `pane-${tabId}`);
+        });
+    }
+
+    function renderKV(pairs) {
+        return `<div class="kv-grid">${pairs.map(([k, v]) => `
+            <div class="kv-card">
+                <div class="k">${esc(k)}</div>
+                <div class="v">${v == null || v === '' ? '-' : esc(v)}</div>
             </div>
         `).join('')}</div>`;
     }
@@ -293,6 +598,29 @@
             result = await api(`/api/devices/${DEVICE_ID}/routes`);
         } else {
             result = { ok: true, data: {} };
+        if (!rows || rows.length === 0) {
+            return `<div class="table-wrap"><table><thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody><tr><td colspan="${columns.length}" style="color:var(--text-muted); text-align:center;">No data</td></tr></tbody></table></div>`;
+        }
+        return `<div class="table-wrap"><table><thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+    }
+
+    function renderOverview() {
+        const pane = document.getElementById('pane-overview');
+        const detail = state.detail || {};
+        const live = state.live || {};
+        const family = detail.device_family;
+
+        if (family === 'mikrotik') {
+            pane.innerHTML = renderKV([
+                ['Hostname', live.identity || detail.name],
+                ['Version', live.version],
+                ['Uptime', live.uptime],
+                ['CPU Load', live.cpu_load],
+                ['Memory Used', live.memory_used],
+                ['Board', live.board_info?.board_name || '-'],
+                ['Architecture', live.board_info?.architecture_name || '-']
+            ]);
+            return;
         }
         state.tabCache[tab] = result;
         return result;
@@ -555,6 +883,197 @@
         const ok = await loadDevice();
         if (!ok) return;
         await renderActiveTab(false);
+        if (family === 'ap') {
+            pane.innerHTML = renderKV([
+                ['Model', live.model],
+                ['Firmware', live.firmware],
+                ['Serial', live.serial],
+                ['Uptime', live.uptime],
+                ['IP', live.ip || detail.ip],
+                ['Netmask', live.netmask],
+                ['Gateway', live.gateway]
+            ]);
+            return;
+        }
+
+        pane.innerHTML = renderKV([
+            ['sysName', live.sysName || detail.name],
+            ['sysDescr', live.sysDescr],
+            ['Uptime', live.uptime],
+            ['Status', detail.status]
+        ]);
+    }
+
+    function renderInterfaces() {
+        const pane = document.getElementById('pane-interfaces');
+        if (!pane) return;
+        const interfaces = state.live?.interfaces || [];
+        pane.innerHTML = renderTable(
+            ['Name', 'Status', 'MAC', 'Speed', 'RX Bytes', 'TX Bytes'],
+            interfaces.map((it) => `
+                <tr>
+                    <td>${esc(it.name || '-')}</td>
+                    <td>${statusBadge(it.status || 'unknown')}</td>
+                    <td>${esc(it.mac || '-')}</td>
+                    <td>${esc(it.speed || '-')}</td>
+                    <td>${esc(it.rx_bytes ?? '-')}</td>
+                    <td>${esc(it.tx_bytes ?? '-')}</td>
+                </tr>
+            `)
+        );
+    }
+
+    function renderRouting() {
+        const pane = document.getElementById('pane-routing');
+        if (!pane) return;
+        const addresses = state.live?.ip_addresses || [];
+        pane.innerHTML = renderTable(
+            ['Address', 'Interface'],
+            addresses.map((item) => `<tr><td>${esc(item.address || '-')}</td><td>${esc(item.interface || '-')}</td></tr>`)
+        );
+    }
+
+    function renderWireless() {
+        const pane = document.getElementById('pane-wireless');
+        if (!pane) return;
+        const wlans = state.live?.wlans || [];
+        pane.innerHTML = renderTable(
+            ['WLAN', 'SSID', 'Status', 'Security', 'Radio', 'BSSID'],
+            wlans.map((wlan) => `
+                <tr>
+                    <td>${esc(wlan.name || '-')}</td>
+                    <td>${esc(wlan.ssid || '-')}</td>
+                    <td>${statusBadge(wlan.status || 'unknown')}</td>
+                    <td>${esc(wlan.security || 'unknown')}</td>
+                    <td>${esc(wlan.radio || '-')}</td>
+                    <td>${esc(wlan.bssid || '-')}</td>
+                </tr>
+            `)
+        );
+    }
+
+    function renderClients() {
+        const pane = document.getElementById('pane-clients');
+        if (!pane) return;
+        pane.innerHTML = renderTable(
+            ['Client MAC', 'IP', 'SSID', 'Signal', 'Connected Since'],
+            []
+        ) + '<p style="margin-top:0.75rem; color:var(--text-muted);">Client inventory will appear here when collector support is enabled.</p>';
+    }
+
+    function renderRadio() {
+        const pane = document.getElementById('pane-radio');
+        if (!pane) return;
+        const airtime = state.live?.airtime || {};
+        pane.innerHTML = renderKV([
+            ['Airtime Total', airtime.total],
+            ['Airtime Busy', airtime.busy],
+            ['TX', airtime.tx],
+            ['RX', airtime.rx]
+        ]);
+    }
+
+    function renderConfig() {
+        const pane = document.getElementById('pane-config');
+        if (!pane) return;
+        const detail = state.detail || {};
+        const cfg = detail.config_json || {};
+
+        pane.innerHTML = `
+            <div class="kv-grid" style="margin-bottom:1rem;">
+                <div class="kv-card"><div class="k">Credential</div><div class="v">${esc(detail.credential_name || 'Not set')}</div></div>
+                <div class="kv-card"><div class="k">Device Family</div><div class="v">${esc(detail.device_family || 'generic')}</div></div>
+            </div>
+            <pre class="config-pre">${esc(JSON.stringify(cfg, null, 2))}</pre>
+            <p style="margin-top:0.65rem; color:var(--text-muted); font-size:0.85rem;">Sensitive fields are masked by API. Wireless passphrases are never displayed.</p>
+        `;
+    }
+
+    function renderHistory() {
+        const pane = document.getElementById('pane-history');
+        if (!pane) return;
+        const history = state.history || { events: [], latest_test: {} };
+
+        const test = history.latest_test || {};
+        const testSummary = renderKV([
+            ['Current Status', history.current_status || '-'],
+            ['Last Seen', history.last_seen ? new Date(history.last_seen).toLocaleString() : '-'],
+            ['Last Status Change', history.last_status_change ? new Date(history.last_status_change).toLocaleString() : '-'],
+            ['Last Latency (ms)', test.latency_ms ?? '-'],
+            ['Last Error', test.error || '-']
+        ]);
+
+        const eventRows = (history.events || []).map((evt) => `
+            <tr>
+                <td>${esc(evt.event || '-')}</td>
+                <td>${statusBadge(evt.status || 'unknown')}</td>
+                <td>${esc(evt.message || '-')}</td>
+                <td>${evt.timestamp ? esc(new Date(evt.timestamp).toLocaleString()) : '-'}</td>
+            </tr>
+        `);
+
+        pane.innerHTML = `
+            ${testSummary}
+            <div style="height:1rem;"></div>
+            ${renderTable(['Event', 'Status', 'Message', 'Timestamp'], eventRows)}
+        `;
+    }
+
+    function renderAllTabs() {
+        renderOverview();
+        renderInterfaces();
+        renderRouting();
+        renderWireless();
+        renderClients();
+        renderRadio();
+        renderConfig();
+        renderHistory();
+    }
+
+    async function runTest() {
+        const btn = event?.currentTarget;
+        if (btn) btn.disabled = true;
+        const result = await fetchData(`/api/devices/${DEVICE_ID}/test`, { method: 'POST' });
+        if (btn) btn.disabled = false;
+        if (!result) {
+            alert('Device test failed to execute.');
+            return;
+        }
+        alert(result.success ? `Device is reachable (${result.latency_ms} ms)` : `Device test failed: ${result.error || 'Unknown error'}`);
+        await loadPageData();
+    }
+
+    async function refreshLiveData() {
+        const pane = document.getElementById(`pane-${state.activeTab}`);
+        if (pane) pane.innerHTML = loadingMarkup('Refreshing live telemetry...');
+        await loadPageData();
+    }
+
+    async function loadPageData() {
+        const [detail, live, history] = await Promise.all([
+            fetchData(`/api/devices/${DEVICE_ID}/detail`),
+            fetchData(`/api/devices/${DEVICE_ID}/live-data`),
+            fetchData(`/api/devices/${DEVICE_ID}/history`)
+        ]);
+
+        if (!detail) {
+            const panes = document.getElementById('panes');
+            panes.innerHTML = '<section class="detail-pane active"><p style="color:var(--danger);">Could not load device detail.</p></section>';
+            return;
+        }
+
+        state.detail = detail;
+        state.live = live || {};
+        state.history = history || { events: [], latest_test: {} };
+
+        setHeader(detail);
+        buildTabs(detail);
+        activateTab(state.activeTab && detail.tabs.includes(state.activeTab) ? state.activeTab : 'overview');
+        renderAllTabs();
+    }
+
+    async function refreshPageData() {
+        await loadPageData();
     }
 </script>
 {% endblock %}
