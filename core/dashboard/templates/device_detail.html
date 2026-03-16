@@ -6,1074 +6,483 @@
 {% block content %}
 <style>
     .detail-shell { display: flex; flex-direction: column; gap: 1rem; }
-    .header-card { padding: 1rem; }
-    .header-top { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-    .header-title-row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.55rem; }
-    .header-meta { color: var(--text-muted); font-size: 0.88rem; margin-top: 0.35rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .header-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+    .header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+    .header-title { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-top: 0.55rem; }
+    .header-meta { display: flex; gap: 0.45rem; flex-wrap: wrap; color: var(--text-muted); font-size: 0.88rem; margin-top: 0.35rem; }
     .header-actions { display: flex; gap: 0.55rem; flex-wrap: wrap; }
-    .status-badge { border-radius: 999px; font-size: 0.75rem; padding: 0.14rem 0.58rem; border: 1px solid transparent; }
-    .status-online { color: var(--success); background: rgba(74, 222, 128, 0.12); border-color: rgba(74, 222, 128, 0.35); }
-    .status-warning { color: var(--warning); background: rgba(250, 204, 21, 0.12); border-color: rgba(250, 204, 21, 0.35); }
-    .status-offline { color: var(--danger); background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.35); }
-    .status-unknown { color: var(--text-muted); background: rgba(255, 255, 255, 0.05); border-color: var(--border); }
-    .tabs-wrap { display: flex; gap: 0.25rem; overflow-x: auto; border-bottom: 1px solid var(--border); }
-    .tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 0.78rem 0.9rem; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
-    .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--accent); background: rgba(255, 255, 255, 0.03); }
+
+    .status-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 0.16rem 0.58rem; font-size: 0.75rem; border: 1px solid transparent; }
+    .badge-online, .badge-up { color: var(--success); background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.35); }
+    .badge-offline, .badge-down { color: var(--danger); background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.35); }
+    .badge-warning { color: var(--warning); background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.35); }
+    .badge-unknown { color: var(--text-muted); background: rgba(255, 255, 255, 0.05); border-color: var(--border); }
+
+    .tabs-wrap { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); overflow-x: auto; }
+    .tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 0.8rem 0.95rem; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-btn.active { color: var(--text-primary); border-bottom-color: var(--accent); }
+
+    .tab-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
     .tab-content { padding: 1rem; }
+
     .cards-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
     .info-card { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem; }
-    .info-label { color: var(--text-muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.2rem; }
-    .info-value { color: var(--text-primary); font-size: 0.92rem; word-break: break-word; }
-    .table-box { border: 1px solid var(--border); border-radius: 10px; overflow: auto; max-height: 62vh; }
-    .table-box table { width: 100%; border-collapse: collapse; }
-    .table-box th, .table-box td { text-align: left; padding: 0.62rem 0.7rem; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 0.86rem; }
-    .table-box tr:last-child td { border-bottom: none; }
-    .table-box th { position: sticky; top: 0; z-index: 2; background: var(--bg-secondary); }
-    .spinner-row { display: flex; align-items: center; gap: 0.65rem; color: var(--text-muted); }
-    .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.18); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+    .info-label { color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; font-size: 0.76rem; margin-bottom: 0.2rem; }
+    .info-value { color: var(--text-primary); font-size: 0.93rem; word-break: break-word; }
+
+    .table-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: auto; max-height: 62vh; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th, .data-table td { text-align: left; padding: 0.62rem 0.7rem; border-bottom: 1px solid var(--border); white-space: nowrap; font-size: 0.86rem; }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table th { position: sticky; top: 0; z-index: 2; background: var(--bg-secondary); }
+
+    .spinner-wrap { display: flex; align-items: center; gap: 0.65rem; color: var(--text-muted); }
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(255, 255, 255, 0.18); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; }
+
+    .error-msg { color: var(--danger); }
     .inline-msg { margin-top: 0.75rem; font-size: 0.85rem; }
     .inline-msg.success { color: var(--success); }
     .inline-msg.error { color: var(--danger); }
     .inline-msg.warning { color: var(--warning); }
-    .json-box { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem; margin: 0; font-size: 0.84rem; overflow: auto; }
-    .modal-wrap { display: none; position: fixed; inset: 0; z-index: 1000; align-items: center; justify-content: center; background: rgba(0,0,0,0.75); }
-    .modal-card { width: min(560px, 94vw); }
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    .btn { padding: 0.44rem 0.78rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text-primary); }
+    .btn-action { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { border-color: rgba(239, 68, 68, 0.45); color: var(--danger); }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 860px) {
-        .form-grid { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 720px) {
+    @media (max-width: 760px) {
         .tabs-wrap { flex-wrap: wrap; overflow: visible; }
     }
 </style>
 
 <div class="detail-shell">
-    <div class="card header-card">
+    <div class="header-card">
         <div class="header-top">
             <div>
-                <a href="/devices" class="btn btn-outline" style="padding:0.4rem 0.75rem;"><i class="fas fa-arrow-left"></i> Back to Devices</a>
-                <div class="header-title-row">
-                    <h3 id="device-name" style="margin:0;">Device #{{ device_id }}</h3>
-                    <span id="device-status" class="status-badge status-unknown">UNKNOWN</span>
+                <a href="/devices" class="btn btn-action"><i class="fas fa-arrow-left"></i> Back to Devices</a>
+                <div class="header-title">
+                    <h3 id="device-name" style="margin: 0;">Device #{{ device_id }}</h3>
+                    <span id="device-status-badge" class="status-badge badge-unknown">UNKNOWN</span>
                 </div>
                 <div class="header-meta">
                     <span>IP: <code id="device-ip">-</code></span>
                     <span>&bull;</span>
                     <span>Type: <strong id="device-type">-</strong></span>
                     <span>&bull;</span>
-                    <span>Connector: <strong id="device-connector">-</strong></span>
+                    <span id="device-connector">-</span>
                     <span>&bull;</span>
-                    <span>Last seen: <strong id="device-last-seen">-</strong></span>
-                    <span>&bull;</span>
-                    <span>Latency: <strong id="device-latency">-</strong></span>
+                    <span>Last: <strong id="device-last-seen">-</strong></span>
                 </div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-outline" onclick="runTest()"><i class="fas fa-network-wired"></i> Test</button>
-                <button class="btn btn-primary" onclick="runRefresh()"><i class="fas fa-sync-alt"></i> Refresh</button>
-                <button class="btn btn-outline" onclick="openEditModal()"><i class="fas fa-pen"></i> Edit</button>
-                <button class="btn btn-outline" style="color:var(--danger); border-color: rgba(248,113,113,0.35);" onclick="deleteDevice()"><i class="fas fa-trash"></i> Delete</button>
+                <button id="btn-test" class="btn btn-action" onclick="runTest()"><i class="fas fa-network-wired"></i> Test</button>
+                <button id="btn-refresh" class="btn btn-action" onclick="runRefresh()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button class="btn btn-danger" onclick="deleteDevice()"><i class="fas fa-trash"></i> Delete</button>
             </div>
         </div>
         <div id="action-message" class="inline-msg"></div>
     </div>
 
-    <div class="card" style="padding:0;">
+    <div class="tab-card">
         <div id="tabs" class="tabs-wrap"></div>
         <div id="tab-content" class="tab-content"></div>
-    </div>
-</div>
-
-<div id="edit-modal" class="modal-wrap">
-    <div class="card modal-card">
-        <h3 style="margin-top:0;">Edit Device</h3>
-        <form onsubmit="saveDeviceEdit(event)">
-            <div class="form-grid">
-                <div>
-                    <label>Name</label>
-                    <input id="edit-name" type="text" required>
-                </div>
-                <div>
-                    <label>IP</label>
-                    <input id="edit-ip" type="text" required>
-                </div>
-                <div>
-                    <label>Port</label>
-                    <input id="edit-port" type="number" min="1" max="65535" value="22">
-                </div>
-                <div>
-                    <label>Type</label>
-                    <input id="edit-type" type="text" required>
-                </div>
-                <div>
-                    <label>Connector</label>
-                    <select id="edit-connector">
-                        <option value="ssh">ssh</option>
-                        <option value="snmp">snmp</option>
-                        <option value="rest_api">rest_api</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Credential</label>
-                    <select id="edit-credential">
-                        <option value="">-- None --</option>
-                    </select>
-                </div>
-            </div>
-            <div style="display:flex; justify-content:flex-end; gap:0.6rem; margin-top:1rem;">
-                <button type="button" class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save</button>
-            </div>
-        </form>
-    </div>
-    .device-detail-shell {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .device-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 1rem;
-        flex-wrap: wrap;
-    }
-
-    .device-meta {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-        margin-top: 0.4rem;
-        color: var(--text-muted);
-        font-size: 0.9rem;
-    }
-
-    .detail-actions {
-        display: flex;
-        gap: 0.6rem;
-        flex-wrap: wrap;
-    }
-
-    .detail-tabs {
-        display: flex;
-        overflow-x: auto;
-        border-bottom: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.02);
-    }
-
-    .detail-tab {
-        padding: 0.85rem 1rem;
-        border: none;
-        background: transparent;
-        color: var(--text-muted);
-        cursor: pointer;
-        white-space: nowrap;
-        border-bottom: 2px solid transparent;
-    }
-
-    .detail-tab.active {
-        color: var(--text-primary);
-        border-bottom-color: var(--accent);
-        background: rgba(255, 255, 255, 0.03);
-    }
-
-    .detail-pane {
-        display: none;
-        padding: 1rem;
-    }
-
-    .detail-pane.active {
-        display: block;
-    }
-
-    .kv-grid {
-        display: grid;
-        gap: 0.85rem;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    }
-
-    .kv-card {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 0.85rem;
-        background: rgba(255, 255, 255, 0.02);
-    }
-
-    .kv-card .k {
-        font-size: 0.78rem;
-        color: var(--text-muted);
-        margin-bottom: 0.3rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-    }
-
-    .kv-card .v {
-        font-size: 0.95rem;
-        color: var(--text-primary);
-        word-break: break-word;
-    }
-
-    .table-wrap {
-        overflow-x: auto;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-    }
-
-    .table-wrap table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .table-wrap th,
-    .table-wrap td {
-        text-align: left;
-        padding: 0.65rem 0.75rem;
-        border-bottom: 1px solid var(--border);
-        white-space: nowrap;
-    }
-
-    .table-wrap tr:last-child td {
-        border-bottom: none;
-    }
-
-    .badge-inline {
-        border-radius: 999px;
-        padding: 0.15rem 0.55rem;
-        font-size: 0.78rem;
-        border: 1px solid transparent;
-    }
-
-    .badge-online {
-        color: #49d17d;
-        border-color: rgba(73, 209, 125, 0.4);
-        background: rgba(73, 209, 125, 0.08);
-    }
-
-    .badge-warning {
-        color: #f2c14e;
-        border-color: rgba(242, 193, 78, 0.4);
-        background: rgba(242, 193, 78, 0.09);
-    }
-
-    .badge-offline {
-        color: #f77777;
-        border-color: rgba(247, 119, 119, 0.4);
-        background: rgba(247, 119, 119, 0.08);
-    }
-
-    .spinner {
-        width: 20px;
-        height: 20px;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-        border-top-color: var(--accent);
-        border-radius: 50%;
-        animation: spin 0.9s linear infinite;
-    }
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .pane-loading {
-        display: flex;
-        align-items: center;
-        gap: 0.7rem;
-        color: var(--text-muted);
-        padding: 0.8rem 0;
-    }
-
-    pre.config-pre {
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 0.85rem;
-        overflow: auto;
-        margin: 0;
-        font-size: 0.84rem;
-        line-height: 1.45;
-    }
-</style>
-
-<div class="device-detail-shell">
-    <div class="card device-top">
-        <div>
-            <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-                <a href="/devices" class="btn btn-outline" style="padding: 0.45rem 0.75rem;">
-                    <i class="fas fa-arrow-left"></i> Back to Devices
-                </a>
-                <h3 id="device-name" style="margin: 0;">Device #{{ device_id }}</h3>
-                <span id="device-status-badge" class="badge-inline">unknown</span>
-            </div>
-            <div class="device-meta">
-                <span>IP: <code id="device-ip">-</code></span>
-                <span>Type: <strong id="device-type">-</strong></span>
-                <span>Connector: <strong id="device-connector">-</strong></span>
-                <span>Last seen: <strong id="device-last-seen">-</strong></span>
-            </div>
-        </div>
-
-        <div class="detail-actions">
-            <button class="btn btn-outline" onclick="runTest()"><i class="fas fa-network-wired"></i> Test</button>
-            <button class="btn btn-primary" onclick="refreshLiveData()"><i class="fas fa-sync-alt"></i> Refresh</button>
-        </div>
-    </div>
-
-    <div class="card" style="padding: 0;">
-        <div id="tabs" class="detail-tabs"></div>
-        <div id="panes"></div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    const DEVICE_ID = Number("{{ device_id }}") || Number((window.location.pathname.match(/\/devices\/(\d+)/) || [])[1]);
+    const TEMPLATE_DEVICE_ID = Number("{{ device_id }}");
+    const URL_DEVICE_ID = Number((window.location.pathname.match(/\/devices\/(\d+)/) || [])[1]);
+    const DEVICE_ID = Number.isFinite(TEMPLATE_DEVICE_ID) && TEMPLATE_DEVICE_ID > 0 ? TEMPLATE_DEVICE_ID : URL_DEVICE_ID;
+
     const state = {
         device: null,
-        activeTab: 'overview',
+        activeTab: "overview",
         tabs: [],
-        tabCache: {},
-        loading: false,
+        cache: {},
     };
 
-    function esc(v) {
-        const d = document.createElement('div');
-        d.textContent = String(v ?? '');
-        return d.innerHTML;
-    }
+    const esc = (text) => {
+        const div = document.createElement("div");
+        div.textContent = String(text ?? "");
+        return div.innerHTML;
+    };
 
-    async function api(path, options = {}) {
+    const fmtDate = (value) => {
+        if (!value) return "Never";
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return String(value);
+        return d.toLocaleString();
+    };
+
+    const fmtBytes = (n) => {
+        const num = Number(n);
+        if (!Number.isFinite(num)) return "-";
+        if (num < 1024) return `${num} B`;
+        if (num < 1024 ** 2) return `${(num / 1024).toFixed(2)} KB`;
+        if (num < 1024 ** 3) return `${(num / (1024 ** 2)).toFixed(2)} MB`;
+        return `${(num / (1024 ** 3)).toFixed(2)} GB`;
+    };
+
+    const fmtLatency = (ms) => {
+        const num = Number(ms);
+        if (!Number.isFinite(num)) return "-";
+        return `${num.toFixed(2)} ms`;
+    };
+
+    const statusBadge = (status) => {
+        const s = String(status || "unknown").toLowerCase();
+        let cls = "badge-unknown";
+        if (s === "online" || s === "up") cls = "badge-online";
+        else if (s === "offline" || s === "down") cls = "badge-offline";
+        else if (s === "warning") cls = "badge-warning";
+        return `<span class="status-badge ${cls}">${esc(s.toUpperCase())}</span>`;
+    };
+
+    const setActionMessage = (message = "", kind = "") => {
+        const el = document.getElementById("action-message");
+        el.className = "inline-msg";
+        if (kind) el.classList.add(kind);
+        el.textContent = message;
+    };
+
+    const api = async (path, options = {}) => {
         try {
-            const res = await fetch(path, {
-                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+            const response = await fetch(path, {
+                headers: { "Content-Type": "application/json", ...(options.headers || {}) },
                 ...options,
             });
-            const contentType = res.headers.get('content-type') || '';
-            const data = contentType.includes('application/json') ? await res.json() : await res.text();
-            if (!res.ok) {
-                return { ok: false, status: res.status, data };
-            }
-            return { ok: true, status: res.status, data };
-        } catch (err) {
-            return { ok: false, status: 0, data: { detail: String(err) } };
+            const contentType = response.headers.get("content-type") || "";
+            const data = contentType.includes("application/json") ? await response.json() : await response.text();
+            return { ok: response.ok, status: response.status, data };
+        } catch (error) {
+            return { ok: false, status: 0, data: { detail: String(error) } };
         }
-    }
-
-    function showMessage(text = '', kind = '') {
-        const el = document.getElementById('action-message');
-        el.className = 'inline-msg';
-        if (kind) el.classList.add(kind);
-        el.textContent = text;
-    }
-
-    function statusClass(status) {
-        const s = String(status || 'unknown').toLowerCase();
-        if (s === 'online' || s === 'up') return 'status-online';
-        if (s === 'warning') return 'status-warning';
-        if (s === 'offline' || s === 'down') return 'status-offline';
-        return 'status-unknown';
-    }
-
-    function statusBadge(status) {
-        const s = String(status || 'unknown').toUpperCase();
-        return `<span class="status-badge ${statusClass(status)}">${esc(s)}</span>`;
-    }
-
-    function fmtDate(v) {
-        if (!v) return 'Never';
-        const d = new Date(v);
-        if (Number.isNaN(d.getTime())) return String(v);
-        return d.toLocaleString();
-    }
-
-    function fmtLatency(v) {
-        if (v == null || v === '') return '-';
-        const n = Number(v);
-        if (Number.isNaN(n)) return `${v}`;
-        return `${n.toFixed(2)} ms`;
-    }
-
-    function normalizeType(rawType) {
-        const t = String(rawType || '').trim().toLowerCase();
-        if (t === 'ap') return 'ap';
-        if (t.includes('mikrotik')) return 'mikrotik';
-        if (t === 'switch') return 'switch';
-        return t || 'unknown';
-    }
-
-    function tabsForType(type) {
-        if (type === 'mikrotik') return ['overview', 'interfaces', 'arp', 'mac', 'routes', 'system', 'config'];
-        if (type === 'ap') return ['overview', 'wireless', 'system', 'config'];
-        if (type === 'switch') return ['overview', 'interfaces', 'system', 'config'];
-        return ['overview', 'system', 'config'];
-    }
-
-    function tabLabel(key) {
-        const map = {
-            overview: 'Overview',
-            interfaces: 'Interfaces',
-            arp: 'ARP Table',
-            mac: 'MAC Table',
-            routes: 'Routes',
-            wireless: 'Wireless',
-            system: 'System',
-            config: 'Config',
-        };
-        return map[key] || key;
-    }
-
-    function renderHeader() {
-        const d = state.device || {};
-        document.getElementById('device-name').textContent = d.name || `Device #${DEVICE_ID}`;
-        document.getElementById('device-ip').textContent = d.ip || d.ip_address || '-';
-        document.getElementById('device-type').textContent = d.type || '-';
-        document.getElementById('device-connector').textContent = d.connector_type || '-';
-        document.getElementById('device-last-seen').textContent = fmtDate(d.last_seen);
-        document.getElementById('device-latency').textContent = fmtLatency(d?.config_json?.last_latency_ms);
-        const badge = document.getElementById('device-status');
-        badge.className = `status-badge ${statusClass(d.status)}`;
-        badge.textContent = String(d.status || 'unknown').toUpperCase();
-    }
-
-    function renderTabs() {
-        const tabsEl = document.getElementById('tabs');
-        tabsEl.innerHTML = state.tabs.map((t) => `
-            <button class="tab-btn ${state.activeTab === t ? 'active' : ''}" onclick="activateTab('${t}')">${tabLabel(t)}</button>
-        `).join('');
-    }
-
-    function loadingMarkup(msg = 'Loading...') {
-        return `<div class="spinner-row"><span class="spinner"></span><span>${esc(msg)}</span></div>`;
-    }
-
-    function renderCards(items) {
-        return `<div class="cards-grid">${items.map((x) => `
-            <div class="info-card">
-                <div class="info-label">${esc(x.label)}</div>
-                <div class="info-value">${x.value == null || x.value === '' ? '-' : x.value}</div>
-    const DEVICE_ID = {{ device_id }};
-    const state = {
-        detail: null,
-        live: null,
-        history: null,
-        activeTab: 'overview'
     };
 
-    function esc(v) {
-        const div = document.createElement('div');
-        div.textContent = String(v ?? '');
-        return div.innerHTML;
-    }
+    const parseDetail = (payload) => {
+        if (!payload) return "Request failed";
+        if (typeof payload === "string") return payload;
+        return payload.detail || payload.error || JSON.stringify(payload);
+    };
 
-    function statusClass(status) {
-        const s = String(status || 'unknown').toLowerCase();
-        if (s === 'online' || s === 'up') return 'badge-online';
-        if (s === 'warning') return 'badge-warning';
-        return 'badge-offline';
-    }
+    const normalizeType = (typeValue) => {
+        const t = String(typeValue || "").trim().toLowerCase();
+        if (t === "ap") return "ap";
+        if (t.includes("mikrotik")) return "mikrotik";
+        if (t === "switch") return "switch";
+        return t || "unknown";
+    };
 
-    function statusBadge(status) {
-        const s = String(status || 'unknown').toLowerCase();
-        return `<span class="badge-inline ${statusClass(s)}">${esc(s)}</span>`;
-    }
+    const tabsForType = (typeValue) => {
+        const t = normalizeType(typeValue);
+        if (t === "mikrotik") return ["overview", "interfaces", "arp", "mac", "routes", "system"];
+        if (t === "ap") return ["overview", "interfaces", "system"];
+        if (t === "switch") return ["overview", "interfaces", "arp", "mac", "system"];
+        return ["overview", "system"];
+    };
 
-    function loadingMarkup(message = 'Loading data...') {
-        return `<div class="pane-loading"><span class="spinner"></span><span>${esc(message)}</span></div>`;
-    }
+    const tabLabel = (key) => ({
+        overview: "Overview",
+        interfaces: "Interfaces",
+        arp: "ARP Table",
+        mac: "MAC Table",
+        routes: "Routes",
+        system: "System",
+    }[key] || key);
 
-    function tabsForFamily(family) {
-        if (family === 'mikrotik') {
-            return [
-                ['overview', 'Overview'],
-                ['interfaces', 'Interfaces'],
-                ['routing', 'Routing'],
-                ['config', 'Config'],
-                ['history', 'History']
-            ];
-        }
-        if (family === 'ap') {
-            return [
-                ['overview', 'Overview'],
-                ['wireless', 'Wireless'],
-                ['clients', 'Clients'],
-                ['radio', 'Radio'],
-                ['config', 'Config'],
-                ['history', 'History']
-            ];
-        }
-        if (family === 'switch') {
-            return [
-                ['overview', 'Overview'],
-                ['interfaces', 'Interfaces'],
-                ['config', 'Config'],
-                ['history', 'History']
-            ];
-        }
-        return [
-            ['overview', 'Overview'],
-            ['config', 'Config'],
-            ['history', 'History']
-        ];
-    }
+    const renderCards = (items) => `
+        <div class="cards-grid">
+            ${items.map((item) => `
+                <div class="info-card">
+                    <div class="info-label">${esc(item.label)}</div>
+                    <div class="info-value">${item.value == null || item.value === "" ? "-" : item.value}</div>
+                </div>
+            `).join("")}
+        </div>
+    `;
 
-    function setHeader(detail) {
-        document.getElementById('device-name').textContent = detail.name || `Device #${DEVICE_ID}`;
-        document.getElementById('device-ip').textContent = detail.ip || '-';
-        document.getElementById('device-type').textContent = detail.type || detail.device_family || '-';
-        document.getElementById('device-connector').textContent = detail.connector_type || '-';
-        document.getElementById('device-last-seen').textContent = detail.last_seen ? new Date(detail.last_seen).toLocaleString() : 'Never';
+    const renderTable = (columns, rows) => `
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr>${columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
+                <tbody>
+                    ${rows.length
+                        ? rows.map((row) => `<tr>${row.map((cell) => `<td>${cell == null ? "-" : cell}</td>`).join("")}</tr>`).join("")
+                        : `<tr><td colspan="${columns.length}" style="text-align:center; color:var(--text-muted);">No data available</td></tr>`}
+                </tbody>
+            </table>
+        </div>
+    `;
 
-        const badge = document.getElementById('device-status-badge');
-        badge.className = `badge-inline ${statusClass(detail.status)}`;
-        badge.textContent = String(detail.status || 'unknown').toUpperCase();
-    }
-
-    function buildTabs(detail) {
-        const tabs = tabsForFamily(detail.device_family);
-        const tabsEl = document.getElementById('tabs');
-        const panesEl = document.getElementById('panes');
-
-        tabsEl.innerHTML = tabs.map(([id, label], idx) => `
-            <button class="detail-tab ${idx === 0 ? 'active' : ''}" data-tab="${id}" onclick="activateTab('${id}')">${label}</button>
-        `).join('');
-
-        panesEl.innerHTML = tabs.map(([id], idx) => `
-            <section id="pane-${id}" class="detail-pane ${idx === 0 ? 'active' : ''}">${loadingMarkup('Preparing tab...')}</section>
-        `).join('');
-    }
-
-    function activateTab(tabId) {
-        state.activeTab = tabId;
-        document.querySelectorAll('.detail-tab').forEach((el) => {
-            el.classList.toggle('active', el.dataset.tab === tabId);
-        });
-        document.querySelectorAll('.detail-pane').forEach((el) => {
-            el.classList.toggle('active', el.id === `pane-${tabId}`);
-        });
-    }
-
-    function renderKV(pairs) {
-        return `<div class="kv-grid">${pairs.map(([k, v]) => `
-            <div class="kv-card">
-                <div class="k">${esc(k)}</div>
-                <div class="v">${v == null || v === '' ? '-' : esc(v)}</div>
-            </div>
-        `).join('')}</div>`;
-    }
-
-    function renderTable(columns, rows) {
-        const th = columns.map((c) => `<th>${esc(c)}</th>`).join('');
-        const body = rows.length
-            ? rows.map((r) => `<tr>${r.map((c) => `<td>${c == null ? '-' : c}</td>`).join('')}</tr>`).join('')
-            : `<tr><td colspan="${columns.length}" style="text-align:center; color:var(--text-muted);">No data</td></tr>`;
-        return `<div class="table-box"><table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
-    }
-
-    function parseErrorDetail(data) {
-        if (!data) return 'Request failed';
-        if (typeof data === 'string') return data;
-        return data.detail || JSON.stringify(data);
-    }
-
-    async function fetchTabData(tab, force = false) {
-        if (!force && state.tabCache[tab]) return state.tabCache[tab];
-        let result;
-        if (tab === 'overview' || tab === 'config') {
-            result = { ok: true, data: state.device };
-        } else if (tab === 'system') {
-            result = await api(`/api/devices/${DEVICE_ID}/system`);
-        } else if (tab === 'interfaces' || tab === 'wireless') {
-            result = await api(`/api/devices/${DEVICE_ID}/interfaces`);
-        } else if (tab === 'arp') {
-            result = await api(`/api/devices/${DEVICE_ID}/arp`);
-        } else if (tab === 'mac') {
-            result = await api(`/api/devices/${DEVICE_ID}/mac-table`);
-        } else if (tab === 'routes') {
-            result = await api(`/api/devices/${DEVICE_ID}/routes`);
-        } else {
-            result = { ok: true, data: {} };
-        if (!rows || rows.length === 0) {
-            return `<div class="table-wrap"><table><thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody><tr><td colspan="${columns.length}" style="color:var(--text-muted); text-align:center;">No data</td></tr></tbody></table></div>`;
-        }
-        return `<div class="table-wrap"><table><thead><tr>${columns.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
-    }
-
-    function renderOverview() {
-        const pane = document.getElementById('pane-overview');
-        const detail = state.detail || {};
-        const live = state.live || {};
-        const family = detail.device_family;
-
-        if (family === 'mikrotik') {
-            pane.innerHTML = renderKV([
-                ['Hostname', live.identity || detail.name],
-                ['Version', live.version],
-                ['Uptime', live.uptime],
-                ['CPU Load', live.cpu_load],
-                ['Memory Used', live.memory_used],
-                ['Board', live.board_info?.board_name || '-'],
-                ['Architecture', live.board_info?.architecture_name || '-']
-            ]);
-            return;
-        }
-        state.tabCache[tab] = result;
-        return result;
-    }
-
-    function renderOverviewTab() {
+    const renderHeader = () => {
         const d = state.device || {};
-        return renderCards([
-            { label: 'Name', value: esc(d.name || '-') },
-            { label: 'IP', value: `<code>${esc(d.ip || d.ip_address || '-')}</code>` },
-            { label: 'Type', value: esc(d.type || '-') },
-            { label: 'Connector', value: esc(d.connector_type || '-') },
-            { label: 'Status', value: statusBadge(d.status) },
-            { label: 'Last Connection', value: esc(fmtDate(d.last_seen)) },
-            { label: 'Latency', value: esc(fmtLatency(d?.config_json?.last_latency_ms)) },
-        ]);
-    }
+        document.getElementById("device-name").textContent = d.name || `Device #${DEVICE_ID}`;
+        document.getElementById("device-ip").textContent = d.ip || d.ip_address || "-";
+        document.getElementById("device-type").textContent = d.type || "-";
+        document.getElementById("device-connector").textContent = d.connector_type ? d.connector_type.toUpperCase() : "-";
+        document.getElementById("device-last-seen").textContent = fmtDate(d.last_seen);
+        document.getElementById("device-status-badge").outerHTML = statusBadge(d.status || "unknown").replace("<span", '<span id="device-status-badge"');
+    };
 
-    function renderSystemTab(data) {
-        const total = data.memory_total || data.total_memory || '-';
-        const free = data.memory_free || data.free_memory || '-';
-        const ram = `${free} / ${total}`;
-        return renderCards([
-            { label: 'Model', value: esc(data.model || data.board_name || '-') },
-            { label: 'OS Version', value: esc(data.os_version || data.version || '-') },
-            { label: 'Uptime', value: esc(data.uptime || '-') },
-            { label: 'CPU', value: esc(data.cpu || data.cpu_model || '-') },
-            { label: 'RAM (free/total)', value: esc(ram) },
-            { label: 'Temperature', value: esc(data.temperature || '-') },
-        ]);
-    }
+    const renderTabs = () => {
+        const tabsEl = document.getElementById("tabs");
+        tabsEl.innerHTML = state.tabs.map((tab) => `
+            <button class="tab-btn ${state.activeTab === tab ? "active" : ""}" onclick="activateTab('${tab}')">${tabLabel(tab)}</button>
+        `).join("");
+    };
 
-    function renderInterfacesTab(items) {
-        const rows = (items || []).map((i) => [
-            esc(i.name || '-'),
-            statusBadge(i.status || 'unknown'),
-            esc(i.type || '-'),
-            esc(i.speed ?? '-'),
-            `<code>${esc(i.mac || '-')}</code>`,
-            esc(i.ip || '-'),
-            esc(i.tx_bytes ?? 0),
-            esc(i.rx_bytes ?? 0),
-            esc(i.errors ?? 0),
-        ]);
-        return renderTable(['Name', 'Status', 'Type', 'Speed', 'MAC', 'IP', 'TX Bytes', 'RX Bytes', 'Errors'], rows);
-    }
+    const setTabContent = (html) => {
+        document.getElementById("tab-content").innerHTML = html;
+    };
 
-    function renderArpTab(items) {
-        const rows = (items || []).map((x) => [esc(x.ip || '-'), `<code>${esc(x.mac || '-')}</code>`, esc(x.interface || x.iface || '-')]);
-        return renderTable(['IP', 'MAC', 'Interface'], rows);
-    }
+    const loadingMarkup = (msg) => `<div class="spinner-wrap"><span class="spinner"></span><span>${esc(msg)}</span></div>`;
 
-    function renderMacTab(items) {
-        const rows = (items || []).map((x) => [
-            `<code>${esc(x.mac || '-')}</code>`,
-            esc(x.interface || x.port || '-'),
-            esc(x.vlan ?? '-'),
-            esc(x.type || '-'),
-        ]);
-        return renderTable(['MAC', 'Interface', 'VLAN', 'Type'], rows);
-    }
-
-    function renderRoutesTab(items) {
-        const rows = (items || []).map((x) => [
-            esc(x.destination || x.dst || '-'),
-            esc(x.gateway || '-'),
-            esc(x.interface || '-'),
-            esc(x.distance ?? '-'),
-        ]);
-        return renderTable(['Destination', 'Gateway', 'Interface', 'Distance'], rows);
-    }
-
-    function renderWirelessTab(items) {
-        const onlyWireless = (items || []).filter((i) => {
-            const n = String(i.name || '').toLowerCase();
-            const t = String(i.type || '').toLowerCase();
-            return n.includes('wlan') || n.includes('wifi') || t.includes('wireless');
-        });
-        const rows = onlyWireless.map((w) => [
-            esc(w.name || '-'),
-            esc(w.ssid || w.name || '-'),
-            statusBadge(w.status || 'unknown'),
-            esc(w.security || '-'),
-            `<code>${esc(w.bssid || '-')}</code>`,
-            esc(w.radio || '-'),
-        ]);
-        return renderTable(['Name', 'SSID', 'Status', 'Security', 'BSSID', 'Radio'], rows);
-    }
-
-    function renderConfigTab() {
+    const renderOverview = () => {
         const d = state.device || {};
-        const cfg = d.config_json || {};
+        const latency = d.config_json && d.config_json.last_latency_ms != null ? fmtLatency(d.config_json.last_latency_ms) : "-";
+        return renderCards([
+            { label: "Name", value: esc(d.name || "-") },
+            { label: "IP", value: `<code>${esc(d.ip || d.ip_address || "-")}</code>` },
+            { label: "Type", value: esc(d.type || "-") },
+            { label: "Connector", value: esc(d.connector_type || "-") },
+            { label: "Port", value: esc(d.port || "-") },
+            { label: "Status", value: statusBadge(d.status || "unknown") },
+            { label: "Last Seen", value: esc(fmtDate(d.last_seen)) },
+            { label: "Latency", value: esc(latency) },
+            { label: "Created", value: esc(fmtDate(d.created_at)) },
+        ]);
+    };
+
+    const fetchTabPayload = async (tab, force = false) => {
+        if (!force && state.cache[tab]) return state.cache[tab];
+        let res = { ok: true, status: 200, data: {} };
+        if (tab === "overview") res = { ok: true, status: 200, data: state.device };
+        else if (tab === "system") res = await api(`/api/devices/${DEVICE_ID}/system`);
+        else if (tab === "interfaces") res = await api(`/api/devices/${DEVICE_ID}/interfaces`);
+        else if (tab === "arp") res = await api(`/api/devices/${DEVICE_ID}/arp`);
+        else if (tab === "mac") res = await api(`/api/devices/${DEVICE_ID}/mac-table`);
+        else if (tab === "routes") res = await api(`/api/devices/${DEVICE_ID}/routes`);
+        state.cache[tab] = res;
+        return res;
+    };
+
+    const renderSystem = (payload) => {
+        if (payload && payload.error) {
+            return `<p class="error-msg">System info not available for this device type.</p>`;
+        }
+        const memory = `${payload.memory_free || "-"} / ${payload.memory_total || "-"}`;
+        return renderCards([
+            { label: "Model", value: esc(payload.model || "-") },
+            { label: "OS Version", value: esc(payload.os_version || "-") },
+            { label: "Uptime", value: esc(payload.uptime || "-") },
+            { label: "CPU", value: esc(payload.cpu || "-") },
+            { label: "RAM", value: esc(memory) },
+        ]);
+    };
+
+    const renderInterfaces = (rows) => {
+        if (!Array.isArray(rows) || rows.length === 0) {
+            return `<p style="color: var(--text-muted);">No interface data available</p>`;
+        }
+        const tableRows = rows.map((item) => [
+            esc(item.name || "-"),
+            statusBadge(item.status || "unknown"),
+            esc(item.speed ?? "-"),
+            `<code>${esc(item.mac || "-")}</code>`,
+            esc(item.ip || "-"),
+            esc(fmtBytes(item.tx_bytes)),
+            esc(fmtBytes(item.rx_bytes)),
+            esc(item.errors ?? 0),
+        ]);
+        return renderTable(["Name", "Status", "Speed", "MAC", "IP", "TX Bytes", "RX Bytes", "Errors"], tableRows);
+    };
+
+    const renderArp = (rows) => renderTable(
+        ["IP", "MAC", "Interface"],
+        (rows || []).map((item) => [esc(item.ip || "-"), `<code>${esc(item.mac || "-")}</code>`, esc(item.interface || "-")]),
+    );
+
+    const renderMac = (rows) => renderTable(
+        ["MAC Address", "Interface", "VLAN", "Type"],
+        (rows || []).map((item) => [
+            `<code>${esc(item.mac || "-")}</code>`,
+            esc(item.interface || "-"),
+            esc(item.vlan ?? "-"),
+            esc(item.type || "-"),
+        ]),
+    );
+
+    const renderRoutes = (rows) => renderTable(
+        ["Destination", "Gateway", "Interface", "Distance"],
+        (rows || []).map((item) => [
+            esc(item.destination || "-"),
+            esc(item.gateway || "-"),
+            esc(item.interface || "-"),
+            esc(item.distance ?? "-"),
+        ]),
+    );
+
+    const render404LoadData = (tab) => {
+        const labels = {
+            arp: "Load ARP Data",
+            mac: "Load MAC Table",
+            routes: "Load Routes",
+        };
         return `
-            ${renderCards([
-                { label: 'Credential Name', value: esc(cfg.credential_name || '-') },
-                { label: 'SSH Mode', value: esc(cfg.ssh_mode || '-') },
-                { label: 'Shell Prompt', value: esc(cfg.shell_prompt || '-') },
-            ])}
-            <div style="height:0.8rem;"></div>
-            <pre class="json-box">${esc(JSON.stringify(cfg, null, 2))}</pre>
+            <p class="error-msg">${esc(parseDetail(state.cache[tab].data))}</p>
+            <button class="btn btn-action" onclick="loadDataForTab('${tab}')">${labels[tab] || "Load Data"}</button>
         `;
-    }
+    };
 
-    async function renderActiveTab(force = false) {
-        const content = document.getElementById('tab-content');
+    const renderActiveTab = async (force = false) => {
         const tab = state.activeTab;
-        content.innerHTML = loadingMarkup(`Loading ${tabLabel(tab)}...`);
+        setTabContent(loadingMarkup(`Loading ${tabLabel(tab)}...`));
+        const res = await fetchTabPayload(tab, force);
 
-        const res = await fetchTabData(tab, force);
         if (!res.ok) {
-            const detail = parseErrorDetail(res.data);
-            const needsRefresh = (tab === 'arp' || tab === 'mac' || tab === 'routes') && res.status === 404;
-            content.innerHTML = `
-                <div class="inline-msg error">${esc(detail)}</div>
-                ${needsRefresh ? '<button class="btn btn-primary" style="margin-top:0.7rem;" onclick="runRefresh()">Load Data via Refresh</button>' : ''}
-            `;
+            if (res.status === 404 && ["arp", "mac", "routes"].includes(tab)) {
+                setTabContent(render404LoadData(tab));
+                return;
+            }
+            setTabContent(`<p class="error-msg">${esc(parseDetail(res.data))}</p>`);
             return;
         }
 
-        const data = res.data;
-        if (tab === 'overview') content.innerHTML = renderOverviewTab();
-        else if (tab === 'system') content.innerHTML = renderSystemTab(data || {});
-        else if (tab === 'interfaces') content.innerHTML = renderInterfacesTab(data || []);
-        else if (tab === 'arp') content.innerHTML = renderArpTab(data || []);
-        else if (tab === 'mac') content.innerHTML = renderMacTab(data || []);
-        else if (tab === 'routes') content.innerHTML = renderRoutesTab(data || []);
-        else if (tab === 'wireless') content.innerHTML = renderWirelessTab(data || []);
-        else if (tab === 'config') content.innerHTML = renderConfigTab();
-        else content.innerHTML = '<div class="inline-msg warning">Tab not implemented</div>';
-    }
+        if (tab === "overview") setTabContent(renderOverview());
+        else if (tab === "system") setTabContent(renderSystem(res.data || {}));
+        else if (tab === "interfaces") setTabContent(renderInterfaces(res.data || []));
+        else if (tab === "arp") setTabContent(renderArp(res.data || []));
+        else if (tab === "mac") setTabContent(renderMac(res.data || []));
+        else if (tab === "routes") setTabContent(renderRoutes(res.data || []));
+        else setTabContent(`<p class="error-msg">Tab not implemented</p>`);
+    };
 
-    async function activateTab(tab) {
+    const activateTab = async (tab) => {
         state.activeTab = tab;
         renderTabs();
+        if (state.cache[tab] && state.cache[tab].ok) {
+            if (tab === "overview") setTabContent(renderOverview());
+            else if (tab === "system") setTabContent(renderSystem(state.cache[tab].data || {}));
+            else if (tab === "interfaces") setTabContent(renderInterfaces(state.cache[tab].data || []));
+            else if (tab === "arp") setTabContent(renderArp(state.cache[tab].data || []));
+            else if (tab === "mac") setTabContent(renderMac(state.cache[tab].data || []));
+            else if (tab === "routes") setTabContent(renderRoutes(state.cache[tab].data || []));
+            return;
+        }
         await renderActiveTab(false);
-    }
+    };
 
-    async function loadDevice() {
-        const res = await api(`/api/devices/${DEVICE_ID}`);
+    const setButtonLoading = (btnId, loading, labelHtml) => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        if (loading) {
+            btn.disabled = true;
+            btn.dataset.prev = btn.innerHTML;
+            btn.innerHTML = `<span class="spinner" style="width:14px;height:14px;"></span> ${labelHtml}`;
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = btn.dataset.prev || labelHtml;
+        }
+    };
+
+    const runTest = async () => {
+        setActionMessage("Testing connectivity...", "warning");
+        setButtonLoading("btn-test", true, "Testing");
+        const res = await api(`/api/devices/${DEVICE_ID}/test`, { method: "POST" });
+        setButtonLoading("btn-test", false, '<i class="fas fa-network-wired"></i> Test');
+
         if (!res.ok) {
-            document.getElementById('tab-content').innerHTML = `<div class="inline-msg error">Could not load device detail: ${esc(parseErrorDetail(res.data))}</div>`;
-            return false;
+            setActionMessage(`Test failed: ${parseDetail(res.data)}`, "error");
+            return;
+        }
+
+        const data = res.data || {};
+        if (state.device) {
+            state.device.status = data.status || state.device.status;
+            state.device.config_json = state.device.config_json || {};
+            if (data.latency_ms != null) state.device.config_json.last_latency_ms = data.latency_ms;
+            renderHeader();
+            state.cache.overview = { ok: true, status: 200, data: state.device };
+            if (state.activeTab === "overview") setTabContent(renderOverview());
+        }
+
+        if (data.success) {
+            setActionMessage(`Online - ${fmtLatency(data.latency_ms)}`, "success");
+        } else {
+            setActionMessage(`Offline - ${data.error || "Unknown error"}`, "error");
+        }
+    };
+
+    const runRefresh = async () => {
+        setActionMessage("Refreshing data...", "warning");
+        setButtonLoading("btn-refresh", true, "Refreshing");
+        const res = await api(`/api/devices/${DEVICE_ID}/refresh`, { method: "POST" });
+        if (!res.ok) {
+            setButtonLoading("btn-refresh", false, '<i class="fas fa-sync-alt"></i> Refresh');
+            setActionMessage(`Refresh failed: ${parseDetail(res.data)}`, "error");
+            return;
+        }
+
+        state.cache = {};
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const deviceRes = await api(`/api/devices/${DEVICE_ID}`);
+        if (deviceRes.ok) {
+            state.device = deviceRes.data;
+            state.cache.overview = { ok: true, status: 200, data: state.device };
+            renderHeader();
+        }
+
+        await renderActiveTab(true);
+        setButtonLoading("btn-refresh", false, '<i class="fas fa-sync-alt"></i> Refresh');
+        setActionMessage("Refresh complete", "success");
+    };
+
+    const loadDataForTab = async (tab) => {
+        await runRefresh();
+        state.activeTab = tab;
+        renderTabs();
+        await renderActiveTab(true);
+    };
+
+    const deleteDevice = async () => {
+        if (!confirm("Are you sure you want to delete this device?")) return;
+        const res = await api(`/api/devices/${DEVICE_ID}`, { method: "DELETE" });
+        if (!res.ok) {
+            setActionMessage(`Delete failed: ${parseDetail(res.data)}`, "error");
+            return;
+        }
+        window.location.href = "/devices";
+    };
+
+    const bootstrap = async () => {
+        if (!Number.isFinite(DEVICE_ID) || DEVICE_ID <= 0) {
+            setTabContent('<p class="error-msg">Device not found. <a href="/devices">Back to devices</a></p>');
+            return;
+        }
+
+        const res = await api(`/api/devices/${DEVICE_ID}`);
+        if (!res.ok || !res.data || !res.data.id) {
+            setTabContent('<p class="error-msg">Device not found. <a href="/devices">Back to devices</a></p>');
+            return;
         }
 
         state.device = res.data;
-        state.tabCache = {};
-        state.tabs = tabsForType(normalizeType(state.device.type));
-        if (!state.tabs.includes(state.activeTab)) state.activeTab = state.tabs[0] || 'overview';
+        state.tabs = tabsForType(state.device.type);
+        state.activeTab = "overview";
+        state.cache = { overview: { ok: true, status: 200, data: state.device } };
+
         renderHeader();
         renderTabs();
-        return true;
-    }
-
-    async function runTest() {
-        showMessage('Running test...', 'warning');
-        const res = await api(`/api/devices/${DEVICE_ID}/test`, { method: 'POST' });
-        if (!res.ok) {
-            showMessage(`Test failed: ${parseErrorDetail(res.data)}`, 'error');
-            return;
-        }
-        const d = res.data || {};
-        const msg = d.success
-            ? `Connectivity OK (${fmtLatency(d.latency_ms)})`
-            : `Connectivity failed: ${d.error || 'Unknown error'}`;
-        showMessage(msg, d.success ? 'success' : 'error');
-        await loadDevice();
-        await renderActiveTab(true);
-    }
-
-    async function runRefresh() {
-        showMessage('Refreshing device data... this can take a few seconds.', 'warning');
-        const res = await api(`/api/devices/${DEVICE_ID}/refresh`, { method: 'POST' });
-        if (!res.ok) {
-            showMessage(`Refresh failed: ${parseErrorDetail(res.data)}`, 'error');
-            return;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        state.tabCache = {};
-        await loadDevice();
-        await renderActiveTab(true);
-        showMessage('Refresh complete.', 'success');
-    }
-
-    async function openEditModal() {
-        if (!state.device) return;
-        const d = state.device;
-        const cfg = d.config_json || {};
-
-        document.getElementById('edit-name').value = d.name || '';
-        document.getElementById('edit-ip').value = d.ip || d.ip_address || '';
-        document.getElementById('edit-port').value = d.port || 22;
-        document.getElementById('edit-type').value = d.type || '';
-        document.getElementById('edit-connector').value = d.connector_type || 'ssh';
-
-        const credSelect = document.getElementById('edit-credential');
-        credSelect.innerHTML = '<option value="">-- None --</option>';
-        const credRes = await api('/api/credentials/');
-        if (credRes.ok && Array.isArray(credRes.data)) {
-            credRes.data.forEach((c) => {
-                const opt = document.createElement('option');
-                opt.value = c.name;
-                opt.textContent = `${c.name} (${c.type})`;
-                credSelect.appendChild(opt);
-            });
-        }
-        if (cfg.credential_name) credSelect.value = cfg.credential_name;
-
-        document.getElementById('edit-modal').style.display = 'flex';
-    }
-
-    function closeEditModal() {
-        document.getElementById('edit-modal').style.display = 'none';
-    }
-
-    async function saveDeviceEdit(event) {
-        event.preventDefault();
-        if (!state.device) return;
-
-        const cfg = { ...(state.device.config_json || {}) };
-        const credential = document.getElementById('edit-credential').value;
-        if (credential) cfg.credential_name = credential;
-        else delete cfg.credential_name;
-
-        const payload = {
-            name: document.getElementById('edit-name').value.trim(),
-            ip: document.getElementById('edit-ip').value.trim(),
-            port: Number(document.getElementById('edit-port').value || 22),
-            type: document.getElementById('edit-type').value.trim(),
-            connector_type: document.getElementById('edit-connector').value,
-            config_json: cfg,
-        };
-
-        const res = await api(`/api/devices/${DEVICE_ID}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-            showMessage(`Update failed: ${parseErrorDetail(res.data)}`, 'error');
-            return;
-        }
-
-        closeEditModal();
-        showMessage('Device updated successfully.', 'success');
-        await loadDevice();
-        await renderActiveTab(true);
-    }
-
-    async function deleteDevice() {
-        if (!confirm('Are you sure you want to delete this device?')) return;
-        const res = await api(`/api/devices/${DEVICE_ID}`, { method: 'DELETE' });
-        if (!res.ok) {
-            showMessage(`Delete failed: ${parseErrorDetail(res.data)}`, 'error');
-            return;
-        }
-        window.location.href = '/devices';
-    }
-
-    async function refreshPageData() {
-        const ok = await loadDevice();
-        if (!ok) return;
         await renderActiveTab(false);
-        if (family === 'ap') {
-            pane.innerHTML = renderKV([
-                ['Model', live.model],
-                ['Firmware', live.firmware],
-                ['Serial', live.serial],
-                ['Uptime', live.uptime],
-                ['IP', live.ip || detail.ip],
-                ['Netmask', live.netmask],
-                ['Gateway', live.gateway]
-            ]);
-            return;
-        }
+    };
 
-        pane.innerHTML = renderKV([
-            ['sysName', live.sysName || detail.name],
-            ['sysDescr', live.sysDescr],
-            ['Uptime', live.uptime],
-            ['Status', detail.status]
-        ]);
-    }
-
-    function renderInterfaces() {
-        const pane = document.getElementById('pane-interfaces');
-        if (!pane) return;
-        const interfaces = state.live?.interfaces || [];
-        pane.innerHTML = renderTable(
-            ['Name', 'Status', 'MAC', 'Speed', 'RX Bytes', 'TX Bytes'],
-            interfaces.map((it) => `
-                <tr>
-                    <td>${esc(it.name || '-')}</td>
-                    <td>${statusBadge(it.status || 'unknown')}</td>
-                    <td>${esc(it.mac || '-')}</td>
-                    <td>${esc(it.speed || '-')}</td>
-                    <td>${esc(it.rx_bytes ?? '-')}</td>
-                    <td>${esc(it.tx_bytes ?? '-')}</td>
-                </tr>
-            `)
-        );
-    }
-
-    function renderRouting() {
-        const pane = document.getElementById('pane-routing');
-        if (!pane) return;
-        const addresses = state.live?.ip_addresses || [];
-        pane.innerHTML = renderTable(
-            ['Address', 'Interface'],
-            addresses.map((item) => `<tr><td>${esc(item.address || '-')}</td><td>${esc(item.interface || '-')}</td></tr>`)
-        );
-    }
-
-    function renderWireless() {
-        const pane = document.getElementById('pane-wireless');
-        if (!pane) return;
-        const wlans = state.live?.wlans || [];
-        pane.innerHTML = renderTable(
-            ['WLAN', 'SSID', 'Status', 'Security', 'Radio', 'BSSID'],
-            wlans.map((wlan) => `
-                <tr>
-                    <td>${esc(wlan.name || '-')}</td>
-                    <td>${esc(wlan.ssid || '-')}</td>
-                    <td>${statusBadge(wlan.status || 'unknown')}</td>
-                    <td>${esc(wlan.security || 'unknown')}</td>
-                    <td>${esc(wlan.radio || '-')}</td>
-                    <td>${esc(wlan.bssid || '-')}</td>
-                </tr>
-            `)
-        );
-    }
-
-    function renderClients() {
-        const pane = document.getElementById('pane-clients');
-        if (!pane) return;
-        pane.innerHTML = renderTable(
-            ['Client MAC', 'IP', 'SSID', 'Signal', 'Connected Since'],
-            []
-        ) + '<p style="margin-top:0.75rem; color:var(--text-muted);">Client inventory will appear here when collector support is enabled.</p>';
-    }
-
-    function renderRadio() {
-        const pane = document.getElementById('pane-radio');
-        if (!pane) return;
-        const airtime = state.live?.airtime || {};
-        pane.innerHTML = renderKV([
-            ['Airtime Total', airtime.total],
-            ['Airtime Busy', airtime.busy],
-            ['TX', airtime.tx],
-            ['RX', airtime.rx]
-        ]);
-    }
-
-    function renderConfig() {
-        const pane = document.getElementById('pane-config');
-        if (!pane) return;
-        const detail = state.detail || {};
-        const cfg = detail.config_json || {};
-
-        pane.innerHTML = `
-            <div class="kv-grid" style="margin-bottom:1rem;">
-                <div class="kv-card"><div class="k">Credential</div><div class="v">${esc(detail.credential_name || 'Not set')}</div></div>
-                <div class="kv-card"><div class="k">Device Family</div><div class="v">${esc(detail.device_family || 'generic')}</div></div>
-            </div>
-            <pre class="config-pre">${esc(JSON.stringify(cfg, null, 2))}</pre>
-            <p style="margin-top:0.65rem; color:var(--text-muted); font-size:0.85rem;">Sensitive fields are masked by API. Wireless passphrases are never displayed.</p>
-        `;
-    }
-
-    function renderHistory() {
-        const pane = document.getElementById('pane-history');
-        if (!pane) return;
-        const history = state.history || { events: [], latest_test: {} };
-
-        const test = history.latest_test || {};
-        const testSummary = renderKV([
-            ['Current Status', history.current_status || '-'],
-            ['Last Seen', history.last_seen ? new Date(history.last_seen).toLocaleString() : '-'],
-            ['Last Status Change', history.last_status_change ? new Date(history.last_status_change).toLocaleString() : '-'],
-            ['Last Latency (ms)', test.latency_ms ?? '-'],
-            ['Last Error', test.error || '-']
-        ]);
-
-        const eventRows = (history.events || []).map((evt) => `
-            <tr>
-                <td>${esc(evt.event || '-')}</td>
-                <td>${statusBadge(evt.status || 'unknown')}</td>
-                <td>${esc(evt.message || '-')}</td>
-                <td>${evt.timestamp ? esc(new Date(evt.timestamp).toLocaleString()) : '-'}</td>
-            </tr>
-        `);
-
-        pane.innerHTML = `
-            ${testSummary}
-            <div style="height:1rem;"></div>
-            ${renderTable(['Event', 'Status', 'Message', 'Timestamp'], eventRows)}
-        `;
-    }
-
-    function renderAllTabs() {
-        renderOverview();
-        renderInterfaces();
-        renderRouting();
-        renderWireless();
-        renderClients();
-        renderRadio();
-        renderConfig();
-        renderHistory();
-    }
-
-    async function runTest() {
-        const btn = event?.currentTarget;
-        if (btn) btn.disabled = true;
-        const result = await fetchData(`/api/devices/${DEVICE_ID}/test`, { method: 'POST' });
-        if (btn) btn.disabled = false;
-        if (!result) {
-            alert('Device test failed to execute.');
-            return;
-        }
-        alert(result.success ? `Device is reachable (${result.latency_ms} ms)` : `Device test failed: ${result.error || 'Unknown error'}`);
-        await loadPageData();
-    }
-
-    async function refreshLiveData() {
-        const pane = document.getElementById(`pane-${state.activeTab}`);
-        if (pane) pane.innerHTML = loadingMarkup('Refreshing live telemetry...');
-        await loadPageData();
-    }
-
-    async function loadPageData() {
-        const [detail, live, history] = await Promise.all([
-            fetchData(`/api/devices/${DEVICE_ID}/detail`),
-            fetchData(`/api/devices/${DEVICE_ID}/live-data`),
-            fetchData(`/api/devices/${DEVICE_ID}/history`)
-        ]);
-
-        if (!detail) {
-            const panes = document.getElementById('panes');
-            panes.innerHTML = '<section class="detail-pane active"><p style="color:var(--danger);">Could not load device detail.</p></section>';
-            return;
-        }
-
-        state.detail = detail;
-        state.live = live || {};
-        state.history = history || { events: [], latest_test: {} };
-
-        setHeader(detail);
-        buildTabs(detail);
-        activateTab(state.activeTab && detail.tabs.includes(state.activeTab) ? state.activeTab : 'overview');
-        renderAllTabs();
-    }
-
-    async function refreshPageData() {
-        await loadPageData();
-    }
+    const refreshPageData = async () => {
+        await bootstrap();
+    };
 </script>
 {% endblock %}
