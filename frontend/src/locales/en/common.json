@@ -1,0 +1,100 @@
+{
+  "app": {
+    "short": "NetVault",
+    "version": "NetVault v0.2.0-dev"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "devices": "Devices",
+    "audit": "Audit",
+    "topology": "Topology",
+    "settings": "Settings"
+  },
+  "language": {
+    "en": "English",
+    "es": "Spanish"
+  },
+  "status": {
+    "online": "Online",
+    "offline": "Offline",
+    "warning": "Warning",
+    "unknown": "Unknown",
+    "loading": "Loading...",
+    "loadingDashboard": "Loading dashboard data...",
+    "loadingDevices": "Loading devices...",
+    "loadingDevice": "Loading device details...",
+    "loadingAudit": "Loading audit results...",
+    "dashboardLoadError": "Unable to load dashboard data"
+  },
+  "actions": {
+    "login": "Sign in",
+    "logout": "Logout",
+    "loading": "Signing in...",
+    "addDevice": "Add Device",
+    "test": "Test",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "auth": {
+    "loginTitle": "Welcome to NetVault",
+    "loginSubtitle": "Monitor your network in real time",
+    "email": "Email",
+    "password": "Password",
+    "emailPlaceholder": "admin@netvault.local",
+    "passwordPlaceholder": "Enter your password",
+    "loginFailed": "Login failed. Verify your credentials.",
+    "loadingSession": "Loading session...",
+    "userFallback": "Unknown user",
+    "roleUnknown": "unknown"
+  },
+  "dashboard": {
+    "metrics": {
+      "totalDevices": "Total Devices",
+      "online": "Online",
+      "offline": "Offline",
+      "uptime": "System Uptime"
+    },
+    "recentDevices": "Recent Devices"
+  },
+  "devices": {
+    "empty": "No devices registered",
+    "detailLoadError": "Could not load device details",
+    "detailTitle": "Device: {{name}}",
+    "detailPlaceholder": "Device tabs (interfaces, ARP, routes, VLANs) will be migrated in next iterations.",
+    "columns": {
+      "name": "Name",
+      "ip": "IP",
+      "type": "Type",
+      "status": "Status",
+      "actions": "Actions"
+    }
+  },
+  "audit": {
+    "empty": "No audit results for the selected filters",
+    "filters": {
+      "deviceId": "Device ID",
+      "auditType": "Audit type",
+      "status": "Status",
+      "dateFrom": "Date from",
+      "dateTo": "Date to"
+    },
+    "columns": {
+      "id": "ID",
+      "deviceId": "Device",
+      "type": "Type",
+      "status": "Status",
+      "timestamp": "Created"
+    }
+  },
+  "settings": {
+    "tabs": {
+      "credentials": "Credentials",
+      "general": "General"
+    },
+    "placeholderCredentials": "Credentials settings placeholder for v0.2 sprint.",
+    "placeholderGeneral": "General settings placeholder for v0.2 sprint."
+  },
+  "topology": {
+    "placeholder": "Topology map - coming in v0.5"
+  }
+}
