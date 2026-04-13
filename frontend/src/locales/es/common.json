@@ -1,0 +1,100 @@
+{
+  "app": {
+    "short": "NetVault",
+    "version": "NetVault v0.2.0-dev"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "devices": "Dispositivos",
+    "audit": "Auditoria",
+    "topology": "Topologia",
+    "settings": "Configuracion"
+  },
+  "language": {
+    "en": "Ingles",
+    "es": "Espanol"
+  },
+  "status": {
+    "online": "En linea",
+    "offline": "Fuera de linea",
+    "warning": "Advertencia",
+    "unknown": "Desconocido",
+    "loading": "Cargando...",
+    "loadingDashboard": "Cargando datos del panel...",
+    "loadingDevices": "Cargando dispositivos...",
+    "loadingDevice": "Cargando detalle del dispositivo...",
+    "loadingAudit": "Cargando resultados de auditoria...",
+    "dashboardLoadError": "No se pudo cargar el panel"
+  },
+  "actions": {
+    "login": "Iniciar sesion",
+    "logout": "Cerrar sesion",
+    "loading": "Ingresando...",
+    "addDevice": "Agregar dispositivo",
+    "test": "Probar",
+    "previous": "Anterior",
+    "next": "Siguiente"
+  },
+  "auth": {
+    "loginTitle": "Bienvenido a NetVault",
+    "loginSubtitle": "Monitorea tu red en tiempo real",
+    "email": "Correo",
+    "password": "Contrasena",
+    "emailPlaceholder": "admin@netvault.local",
+    "passwordPlaceholder": "Ingresa tu contrasena",
+    "loginFailed": "Error al iniciar sesion. Verifica tus credenciales.",
+    "loadingSession": "Cargando sesion...",
+    "userFallback": "Usuario desconocido",
+    "roleUnknown": "desconocido"
+  },
+  "dashboard": {
+    "metrics": {
+      "totalDevices": "Dispositivos totales",
+      "online": "En linea",
+      "offline": "Fuera de linea",
+      "uptime": "Tiempo activo"
+    },
+    "recentDevices": "Dispositivos recientes"
+  },
+  "devices": {
+    "empty": "No hay dispositivos registrados",
+    "detailLoadError": "No se pudo cargar el detalle del dispositivo",
+    "detailTitle": "Dispositivo: {{name}}",
+    "detailPlaceholder": "Las pestanas de dispositivo (interfaces, ARP, rutas, VLANs) se migraran en iteraciones siguientes.",
+    "columns": {
+      "name": "Nombre",
+      "ip": "IP",
+      "type": "Tipo",
+      "status": "Estado",
+      "actions": "Acciones"
+    }
+  },
+  "audit": {
+    "empty": "No hay resultados para los filtros seleccionados",
+    "filters": {
+      "deviceId": "ID de dispositivo",
+      "auditType": "Tipo de auditoria",
+      "status": "Estado",
+      "dateFrom": "Fecha inicio",
+      "dateTo": "Fecha fin"
+    },
+    "columns": {
+      "id": "ID",
+      "deviceId": "Dispositivo",
+      "type": "Tipo",
+      "status": "Estado",
+      "timestamp": "Creado"
+    }
+  },
+  "settings": {
+    "tabs": {
+      "credentials": "Credenciales",
+      "general": "General"
+    },
+    "placeholderCredentials": "Placeholder de credenciales para el sprint v0.2.",
+    "placeholderGeneral": "Placeholder de configuracion general para el sprint v0.2."
+  },
+  "topology": {
+    "placeholder": "Mapa de topologia - disponible en v0.5"
+  }
+}

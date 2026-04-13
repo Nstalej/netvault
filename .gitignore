@@ -54,7 +54,8 @@ htmlcov/
 # Build artifacts
 *.tar.gz
 *.zip
+frontend/node_modules/
+frontend/dist/
 
-# Local memory workspace (do not commit)
+# Documentacion local centralizada - no commitear
 memory/
-Memory/
