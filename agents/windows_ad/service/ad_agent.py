@@ -1,23 +1,24 @@
 """
 NetVault - Windows AD Agent - Main Service
 """
-import os
-import time
 import asyncio
 import logging
-import yaml
+import os
 import socket
-import httpx
+import time
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
+import httpx
+import yaml
 from dotenv import load_dotenv
 
 try:
-    from agents.windows_ad.service.ad_collector import ADCollector
     from agents.windows_ad.service.ad_auditor import ADAuditor
+    from agents.windows_ad.service.ad_collector import ADCollector
 except ImportError:
-    from ad_collector import ADCollector
     from ad_auditor import ADAuditor
+    from ad_collector import ADCollector
 
 # Setup Logging
 logging.basicConfig(
@@ -25,6 +26,81 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("ADAgent")
+
+
+def _trim_list(values: List[Any], max_items: int = 1500) -> List[Any]:
+    if len(values) <= max_items:
+        return values
+    return values[:max_items]
+
+
+def _essential_ad_data(ad_data: Dict[str, Any]) -> Dict[str, Any]:
+    if "error" in ad_data:
+        return {"error": ad_data["error"]}
+
+    users = _trim_list(ad_data.get("users", []), max_items=2000)
+    groups = _trim_list(ad_data.get("groups", []), max_items=1000)
+    computers = _trim_list(ad_data.get("computers", []), max_items=3000)
+    gpos = _trim_list(ad_data.get("gpos", []), max_items=500)
+
+    # Keep only required/essential fields in payload.
+    safe_users = [
+        {
+            "sAMAccountName": u.get("sAMAccountName", ""),
+            "displayName": u.get("displayName", ""),
+            "mail": u.get("mail", ""),
+            "department": u.get("department", ""),
+            "title": u.get("title", ""),
+            "enabled": bool(u.get("enabled", True)),
+            "locked": bool(u.get("locked", False)),
+            "lastLogon": u.get("lastLogon"),
+            "passwordNeverExpires": bool(u.get("passwordNeverExpires", False)),
+            "memberOf": u.get("memberOf", []),
+            # compatibility fields for auditor
+            "is_disabled": bool(u.get("is_disabled", not bool(u.get("enabled", True)))),
+            "is_locked": bool(u.get("is_locked", bool(u.get("locked", False)))),
+            "lastLogonTimestamp": u.get("lastLogonTimestamp") or u.get("lastLogon"),
+            "userAccountControl": u.get("userAccountControl", 0),
+        }
+        for u in users
+    ]
+
+    safe_groups = [
+        {
+            "name": g.get("name", ""),
+            "members": g.get("members", []),
+            "memberCount": int(g.get("memberCount", len(g.get("members", [])))),
+            "scope": g.get("scope", "Unknown"),
+            # compatibility fields for auditor
+            "sAMAccountName": g.get("sAMAccountName", g.get("name", "")),
+            "member": g.get("member", g.get("members", [])),
+        }
+        for g in groups
+    ]
+
+    safe_computers = [
+        {
+            "name": c.get("name", ""),
+            "os": c.get("os", ""),
+            "lastLogon": c.get("lastLogon"),
+        }
+        for c in computers
+    ]
+
+    safe_gpos = [
+        {
+            "name": gpo.get("name", ""),
+            "status": gpo.get("status", "unknown"),
+        }
+        for gpo in gpos
+    ]
+
+    return {
+        "users": safe_users,
+        "groups": safe_groups,
+        "computers": safe_computers,
+        "gpos": safe_gpos,
+    }
 
 class ADAgent:
     def __init__(self, config_path: str = "config.yml"):
@@ -115,9 +191,9 @@ class ADAgent:
         logger.info("Starting AD audit...")
         ad_data = self.collector.collect_all()
         audit_results = self.auditor.audit(ad_data)
-        
-        # Include detailed raw AD data according to QA requested fix (Bug 4)
-        audit_results["data"] = ad_data
+
+        # Include only essential AD detail fields in payload.
+        audit_results["data"] = _essential_ad_data(ad_data)
         
         url = f"{self.server_url}/api/audit/results"
         payload = {

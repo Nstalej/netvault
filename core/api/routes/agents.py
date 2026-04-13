@@ -1,18 +1,20 @@
 """
 NetVault - Remote Agent management routes
 """
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Request, Header, status
-from fastapi.responses import StreamingResponse
-import os
 import io
+import json
+import os
 import zipfile
+from datetime import datetime
+from typing import Any, Dict, List
 
-from core.database.models import AgentModel
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
+
+from core.config import Settings
 from core.database import crud
 from core.database.db import DatabaseManager
-from core.config import Settings
+from core.database.models import AgentModel
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -71,6 +73,42 @@ async def get_agent_status(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
     return agent
+
+
+@router.get("/{agent_id}/ad-data")
+async def get_agent_ad_data(
+    agent_id: int,
+    db: DatabaseManager = Depends(get_db),
+):
+    """Return latest successful AD audit data payload for an agent."""
+    agent = await crud.get_agent(db, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    row = await db.fetch_one(
+        (
+            "SELECT id, audit_type, status, completed_at, result_json "
+            "FROM audit_logs "
+            "WHERE agent_id = ? AND audit_type = 'ad_audit' "
+            "AND lower(status) IN ('success', 'completed') "
+            "ORDER BY completed_at DESC, id DESC LIMIT 1"
+        ),
+        (agent_id,),
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="No AD audit data found for this agent")
+
+    result_json = json.loads(row.get("result_json") or "{}")
+    return {
+        "agent_id": agent_id,
+        "audit_id": row.get("id"),
+        "audit_type": row.get("audit_type"),
+        "status": row.get("status"),
+        "completed_at": row.get("completed_at"),
+        "summary": result_json.get("summary", {}),
+        "checks": result_json.get("checks", []),
+        "data": result_json.get("data", {}),
+    }
 
 @router.delete("/{agent_id}")
 async def unregister_agent(
