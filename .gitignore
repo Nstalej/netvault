@@ -54,3 +54,7 @@ htmlcov/
 # Build artifacts
 *.tar.gz
 *.zip
+
+# Local memory workspace (do not commit)
+memory/
+Memory/
