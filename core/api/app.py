@@ -104,6 +104,8 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     try:
+        if hasattr(app.state, "device_manager"):
+            await app.state.device_manager.stop_scheduled_polling()
         if hasattr(app.state, "scheduler"):
         if hasattr(app.state, 'device_manager'):
             await app.state.device_manager.stop_scheduled_polling()

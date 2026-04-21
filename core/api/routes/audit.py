@@ -7,13 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from core.api.deps import get_current_user, require_editor_or_above
+from core.api.routes.agents import validate_agent_token
 from core.database.models import AuditLogModel
 from core.database import crud
 from core.database.db import DatabaseManager
 from core.engine.audit_engine import AuditEngine
 
-router = APIRouter(prefix="/api/audit", tags=["audit"], dependencies=[Depends(get_current_user)])
-v1_router = APIRouter(prefix="/api/v1/audit", tags=["audit-v1"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/api/audit", tags=["audit"])
+v1_router = APIRouter(prefix="/api/v1/audit", tags=["audit-v1"])
 
 
 def get_db(request: Request) -> DatabaseManager:
@@ -62,7 +63,7 @@ async def run_audit(
 async def submit_audit_results(
     log_data: AuditLogModel,
     db: DatabaseManager = Depends(get_db),
-    _: Dict[str, Any] = Depends(require_editor_or_above),
+    _token=Depends(validate_agent_token),
 ):
     """Submit audit results from an agent"""
     try:
@@ -81,6 +82,7 @@ async def list_audit_results(
     device_id: Optional[int] = None,
     offset: int = 0,
     db: DatabaseManager = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user),
 ):
     """
     List historical audit results with optional filters.
@@ -105,7 +107,11 @@ async def list_audit_results(
 
 @router.get("/results/{audit_id}", response_model=Dict[str, Any])
 @v1_router.get("/results/{audit_id}", response_model=Dict[str, Any])
-async def get_audit_result(audit_id: int, db: DatabaseManager = Depends(get_db)):
+async def get_audit_result(
+    audit_id: int,
+    db: DatabaseManager = Depends(get_db),
+    _: Dict[str, Any] = Depends(get_current_user),
+):
     """Get detailed results for a specific audit execution"""
     row = await crud.get_audit_log(db, audit_id)
     if not row:
@@ -115,7 +121,7 @@ async def get_audit_result(audit_id: int, db: DatabaseManager = Depends(get_db))
 
 @router.get("/schedule")
 @v1_router.get("/schedule")
-async def list_scheduled_audits():
+async def list_scheduled_audits(_: Dict[str, Any] = Depends(get_current_user)):
     """List all configured recurring audit schedules (Phase 5)"""
     return []
 
