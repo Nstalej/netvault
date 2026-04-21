@@ -1,13 +1,15 @@
 """
 NetVault - Secure Credential management routes
 """
+
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
+from core.api.deps import get_current_user, require_editor_or_above
 from core.engine.credential_vault import CredentialVault
 
-router = APIRouter(tags=["credentials"])
+router = APIRouter(tags=["credentials"], dependencies=[Depends(get_current_user)])
 
 SENSITIVE_FIELDS = {
     "password",
@@ -58,12 +60,10 @@ class CredentialUpdateRequest(BaseModel):
     data: Dict[str, Any]
 
 
-
 def _require(data: Dict[str, Any], key: str, message: str):
     value = data.get(key)
     if value is None or (isinstance(value, str) and not value.strip()):
         raise HTTPException(status_code=422, detail=message)
-
 
 
 def validate_credential_payload(credential_type: str, data: Dict[str, Any]) -> None:
@@ -86,7 +86,8 @@ def validate_credential_payload(credential_type: str, data: Dict[str, Any]) -> N
 @router.post("/api/credentials", status_code=status.HTTP_201_CREATED)
 async def store_credential(
     cred: CredentialRequest,
-    vault: CredentialVault = Depends(get_vault)
+    vault: CredentialVault = Depends(get_vault),
+    _: Dict[str, Any] = Depends(require_editor_or_above),
 ):
     """Securely store a new network credential (SNMP community, SSH password, etc.)"""
     try:
@@ -103,7 +104,8 @@ async def store_credential(
 async def update_credential(
     name: str,
     payload: CredentialUpdateRequest,
-    vault: CredentialVault = Depends(get_vault)
+    vault: CredentialVault = Depends(get_vault),
+    _: Dict[str, Any] = Depends(require_editor_or_above),
 ):
     """Update an existing credential's encrypted data."""
     try:
@@ -119,7 +121,8 @@ async def update_credential(
 @router.delete("/api/credentials/{name}")
 async def delete_credential(
     name: str,
-    vault: CredentialVault = Depends(get_vault)
+    vault: CredentialVault = Depends(get_vault),
+    _: Dict[str, Any] = Depends(require_editor_or_above),
 ):
     """Permanently delete a credential from the vault"""
     await vault.delete_credential(name)

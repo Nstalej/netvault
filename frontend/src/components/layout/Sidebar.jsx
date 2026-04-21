@@ -18,7 +18,7 @@ export default function Sidebar() {
       <div className="border-b border-surface-600 px-4 py-5">
         <span className="text-xl font-bold text-teal">Net</span>
         <span className="text-xl font-bold text-white">Vault</span>
-        <span className="ml-2 rounded bg-surface-700 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">v0.2</span>
+        <span className="ml-2 rounded bg-surface-700 px-1.5 py-0.5 font-mono text-[10px] text-gray-400">v0.5</span>
       </div>
 
       <nav className="flex-1 space-y-1 px-2 py-4">

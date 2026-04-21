@@ -2,6 +2,7 @@
 NetVault - Configuration Module
 Centralized settings management using Pydantic v2 and YAML.
 """
+
 import os
 import logging
 import yaml
@@ -18,16 +19,19 @@ load_dotenv()
 
 logger = logging.getLogger("netvault.config")
 
+
 class AppConfig(BaseModel):
     name: str = "NetVault"
     version: str = "0.1.0"
     description: str = "Network Monitor & Auditor"
     environment: str = Field(default="development", alias="ENVIRONMENT")
 
+
 class MCPConfig(BaseModel):
     port: int = Field(default=8444, alias="MCP_PORT")
     enabled: bool = Field(default=False, alias="MCP_ENABLED")
     auth_token: str = Field(default="mcp-default-token", alias="MCP_AUTH_TOKEN")
+
 
 class ServerConfig(BaseModel):
     dashboard_host: str = Field(default="0.0.0.0", alias="DASHBOARD_HOST")
@@ -35,14 +39,18 @@ class ServerConfig(BaseModel):
     api_host: str = Field(default="0.0.0.0", alias="API_HOST")
     api_port: int = Field(default=8443, alias="API_PORT")
 
+
 class DatabaseConfig(BaseModel):
     db_path: str = Field(default="data/netvault.db", alias="DATABASE_URL")
     pool_size: int = 5
 
+
 class SecurityConfig(BaseModel):
     secret_key: str = Field(default="insecure-default-secret-key", alias="SECRET_KEY")
+    access_token_expire_hours: int = Field(default=8, alias="ACCESS_TOKEN_EXPIRE_HOURS")
     credentials_master_key: str = Field(..., alias="CREDENTIALS_MASTER_KEY")
     agent_auth_token: str = Field(..., alias="AGENT_AUTH_TOKEN")
+
 
 class LoggingConfig(BaseModel):
     level: str = "INFO"
@@ -51,10 +59,12 @@ class LoggingConfig(BaseModel):
     max_size_mb: int = 10
     backup_count: int = 5
 
+
 class PollingConfig(BaseModel):
     interval_minutes: int = Field(default=5, alias="POLLING_INTERVAL_MINUTES")
     device_concurrency: int = Field(default=10, alias="POLLING_DEVICE_CONCURRENCY")
     agent_offline_seconds: int = Field(default=120, alias="AGENT_OFFLINE_SECONDS")
+
 
 class AuditConfig(BaseModel):
     default_interval_minutes: int = 60
@@ -62,10 +72,12 @@ class AuditConfig(BaseModel):
     retention_days: int = 90
     max_concurrent_audits: int = 5
 
+
 class AgentsConfig(BaseModel):
     auth_required: bool = True
     heartbeat_interval_seconds: int = 30
     timeout_seconds: int = 120
+
 
 class ModulesConfig(BaseModel):
     dashboard: bool = True
@@ -74,8 +86,10 @@ class ModulesConfig(BaseModel):
     scheduler: bool = True
     alerts: bool = False
 
+
 class Settings(BaseSettings):
     """Main settings class merging YAML and Environment Variables"""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_nested_delimiter="__",
@@ -95,9 +109,10 @@ class Settings(BaseSettings):
 
     # Flat env-var fields used to build SecurityConfig
     secret_key: str = Field(default="insecure-default-secret-key", alias="SECRET_KEY")
+    access_token_expire_hours: int = Field(default=8, alias="ACCESS_TOKEN_EXPIRE_HOURS")
     credentials_master_key: str = Field(..., alias="CREDENTIALS_MASTER_KEY")
     agent_auth_token: str = Field(..., alias="AGENT_AUTH_TOKEN")
-    
+
     # MCP server specific (pulled from env)
     mcp_port: int = Field(default=8444, alias="MCP_PORT")
     mcp_enabled: bool = Field(default=False, alias="MCP_ENABLED")
@@ -110,29 +125,24 @@ class Settings(BaseSettings):
     def build_security(self) -> "Settings":
         self.security = SecurityConfig(
             SECRET_KEY=self.secret_key,
+            ACCESS_TOKEN_EXPIRE_HOURS=self.access_token_expire_hours,
             CREDENTIALS_MASTER_KEY=self.credentials_master_key,
             AGENT_AUTH_TOKEN=self.agent_auth_token,
         )
-        self.mcp = MCPConfig(
-            port=self.mcp_port,
-            enabled=self.mcp_enabled,
-            auth_token=self.mcp_auth_token
-        )
+        self.mcp = MCPConfig(port=self.mcp_port, enabled=self.mcp_enabled, auth_token=self.mcp_auth_token)
         return self
 
     mcp: MCPConfig = MCPConfig()
 
+
 def find_config_file(filename: str) -> Optional[Path]:
     """Find a configuration file in common locations"""
-    paths = [
-        Path(f"/app/config/{filename}"),
-        Path(f"config/{filename}"),
-        Path(filename)
-    ]
+    paths = [Path(f"/app/config/{filename}"), Path(f"config/{filename}"), Path(filename)]
     for path in paths:
         if path.exists():
             return path
     return None
+
 
 def load_yaml(path: Path) -> Dict[str, Any]:
     """Safely load a YAML file"""
@@ -142,6 +152,7 @@ def load_yaml(path: Path) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to load YAML from {path}: {e}")
         return {}
+
 
 @lru_cache()
 def get_config() -> Settings:
@@ -169,7 +180,7 @@ def get_config() -> Settings:
         # (Assuming YAML structure matches model structure)
         config_dict = yaml_data.copy()
         config_dict["inventory"] = inventory
-        
+
         # Initialize Settings - this will pull from ENV vars as well
         settings = Settings(**config_dict)
         return settings
@@ -177,4 +188,5 @@ def get_config() -> Settings:
         logger.critical(f"Configuration validation failed: {e}")
         # In production, we want to fail fast
         import sys
+
         sys.exit(1)
