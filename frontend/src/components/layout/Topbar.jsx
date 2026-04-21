@@ -4,8 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import LanguageSwitcher from '../LanguageSwitcher';
 
 export default function Topbar() {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation(['common', 'auth']);
   const { user, logout } = useAuth();
+
+  const roleKey = user?.role ? `roles.${user.role}` : 'session.roleUnknown';
 
   return (
     <header className="flex h-14 items-center justify-between border-b border-surface-600 bg-surface-800 px-4 md:px-6">
@@ -18,9 +20,9 @@ export default function Topbar() {
         <LanguageSwitcher />
         <div className="hidden items-center gap-2 text-sm text-gray-400 sm:flex">
           <User size={14} />
-          <span>{user?.email || t('auth.userFallback')}</span>
+          <span>{user?.email || t('auth:session.userFallback')}</span>
           <span className="rounded bg-surface-700 px-1.5 py-0.5 font-mono text-xs text-teal">
-            {user?.role || t('auth.roleUnknown')}
+            {user?.role ? t(`auth:${roleKey}`) : t('auth:session.roleUnknown')}
           </span>
         </div>
         <button

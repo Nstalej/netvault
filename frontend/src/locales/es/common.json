@@ -1,18 +1,23 @@
 {
   "app": {
     "short": "NetVault",
-    "version": "NetVault v0.2.0-dev"
+    "version": "NetVault v0.5.0-dev"
   },
   "nav": {
     "dashboard": "Panel",
     "devices": "Dispositivos",
     "audit": "Auditoria",
     "topology": "Topologia",
-    "settings": "Configuracion"
+    "alerts": "Alertas",
+    "reports": "Reportes",
+    "settings": "Configuracion",
+    "logout": "Cerrar sesion"
   },
   "language": {
     "en": "Ingles",
-    "es": "Espanol"
+    "es": "Espanol",
+    "switch": "English",
+    "current": "Espanol"
   },
   "status": {
     "online": "En linea",
@@ -27,6 +32,14 @@
     "dashboardLoadError": "No se pudo cargar el panel"
   },
   "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Agregar",
+    "refresh": "Actualizar",
+    "export": "Exportar",
+    "search": "Buscar",
     "login": "Iniciar sesion",
     "logout": "Cerrar sesion",
     "loading": "Ingresando...",
@@ -35,17 +48,10 @@
     "previous": "Anterior",
     "next": "Siguiente"
   },
-  "auth": {
-    "loginTitle": "Bienvenido a NetVault",
-    "loginSubtitle": "Monitorea tu red en tiempo real",
-    "email": "Correo",
-    "password": "Contrasena",
-    "emailPlaceholder": "admin@netvault.local",
-    "passwordPlaceholder": "Ingresa tu contrasena",
-    "loginFailed": "Error al iniciar sesion. Verifica tus credenciales.",
-    "loadingSession": "Cargando sesion...",
-    "userFallback": "Usuario desconocido",
-    "roleUnknown": "desconocido"
+  "pagination": {
+    "previous": "Anterior",
+    "next": "Siguiente",
+    "showing": "Mostrando {{from}}-{{to}} de {{total}}"
   },
   "dashboard": {
     "metrics": {

@@ -29,7 +29,14 @@ export default function App() {
             <Route path="/devices" element={<DevicesPage />} />
             <Route path="/devices/:id" element={<DeviceDetailPage />} />
             <Route path="/audit" element={<AuditPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/settings"
+              element={(
+                <ProtectedRoute requiredRole="admin">
+                  <SettingsPage />
+                </ProtectedRoute>
+              )}
+            />
             <Route path="/topology" element={<TopologyPage />} />
           </Route>
 

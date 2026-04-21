@@ -18,6 +18,12 @@ class DeviceStatus(str, Enum):
     UNKNOWN = "unknown"
 
 
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    EDITOR = "editor"
+    VIEWER = "viewer"
+
+
 class DeviceModel(BaseModel):
     model_config = {"populate_by_name": True}
     id: Optional[int] = None
@@ -85,6 +91,18 @@ class CredentialStoreModel(BaseModel):
     name: str
     type: str  # snmp_v2, ssh_password, api_key
     encrypted_data: str  # Base64 encoded ciphertext
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class UserModel(BaseModel):
+    id: Optional[int] = None
+    email: str
+    hashed_password: str
+    full_name: Optional[str] = None
+    role: UserRole = UserRole.VIEWER
+    is_active: bool = True
+    locale: str = "en"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -210,9 +228,23 @@ CREATE TABLE IF NOT EXISTS credentials (
     encrypted_password TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    hashed_password TEXT NOT NULL,
+    full_name TEXT,
+    role TEXT NOT NULL DEFAULT 'viewer',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    locale TEXT NOT NULL DEFAULT 'en',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 """
 
 # Initial configuration
 INITIAL_SQL = """
-INSERT OR IGNORE INTO sys_config (key, value) VALUES ('db_version', '2');
+INSERT OR IGNORE INTO sys_config (key, value) VALUES ('db_version', '3');
 """

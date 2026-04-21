@@ -5,7 +5,7 @@ import { ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
-  const { t } = useTranslation('common');
+  const { t } = useTranslation('auth');
   const { token, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +28,7 @@ export default function LoginPage() {
       await login(email, password);
       navigate(from, { replace: true });
     } catch {
-      setError(t('auth.loginFailed'));
+      setError(t('login.error'));
     } finally {
       setSubmitting(false);
     }
@@ -44,15 +44,15 @@ export default function LoginPage() {
             <ShieldCheck size={20} />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-white">{t('auth.loginTitle')}</h1>
-            <p className="text-sm text-gray-400">{t('auth.loginSubtitle')}</p>
+            <h1 className="text-xl font-semibold text-white">{t('login.title')}</h1>
+            <p className="text-sm text-gray-400">{t('login.subtitle')}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm text-gray-300" htmlFor="email">
-              {t('auth.email')}
+              {t('login.email')}
             </label>
             <input
               id="email"
@@ -60,14 +60,14 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder={t('auth.emailPlaceholder')}
+              placeholder={t('login.emailPlaceholder')}
               autoComplete="username"
             />
           </div>
 
           <div>
             <label className="mb-1 block text-sm text-gray-300" htmlFor="password">
-              {t('auth.password')}
+              {t('login.password')}
             </label>
             <input
               id="password"
@@ -75,7 +75,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder={t('auth.passwordPlaceholder')}
+              placeholder={t('login.passwordPlaceholder')}
               autoComplete="current-password"
             />
           </div>
@@ -83,7 +83,7 @@ export default function LoginPage() {
           {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
           <button type="submit" className="btn-primary w-full" disabled={submitting}>
-            {submitting ? t('actions.loading') : t('actions.login')}
+            {submitting ? t('login.loading') : t('login.submit')}
           </button>
         </form>
       </div>

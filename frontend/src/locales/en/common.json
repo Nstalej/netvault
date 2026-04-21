@@ -1,18 +1,23 @@
 {
   "app": {
     "short": "NetVault",
-    "version": "NetVault v0.2.0-dev"
+    "version": "NetVault v0.5.0-dev"
   },
   "nav": {
     "dashboard": "Dashboard",
     "devices": "Devices",
     "audit": "Audit",
     "topology": "Topology",
-    "settings": "Settings"
+    "alerts": "Alerts",
+    "reports": "Reports",
+    "settings": "Settings",
+    "logout": "Logout"
   },
   "language": {
     "en": "English",
-    "es": "Spanish"
+    "es": "Spanish",
+    "switch": "Espanol",
+    "current": "English"
   },
   "status": {
     "online": "Online",
@@ -27,6 +32,14 @@
     "dashboardLoadError": "Unable to load dashboard data"
   },
   "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "refresh": "Refresh",
+    "export": "Export",
+    "search": "Search",
     "login": "Sign in",
     "logout": "Logout",
     "loading": "Signing in...",
@@ -35,17 +48,10 @@
     "previous": "Previous",
     "next": "Next"
   },
-  "auth": {
-    "loginTitle": "Welcome to NetVault",
-    "loginSubtitle": "Monitor your network in real time",
-    "email": "Email",
-    "password": "Password",
-    "emailPlaceholder": "admin@netvault.local",
-    "passwordPlaceholder": "Enter your password",
-    "loginFailed": "Login failed. Verify your credentials.",
-    "loadingSession": "Loading session...",
-    "userFallback": "Unknown user",
-    "roleUnknown": "unknown"
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "showing": "Showing {{from}}-{{to}} of {{total}}"
   },
   "dashboard": {
     "metrics": {
