@@ -4,7 +4,6 @@ NetVault - Device management routes
 
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
 
 from core.api.deps import require_editor_or_above, get_current_user
 from core.database.models import DeviceModel, DeviceStatus
@@ -13,6 +12,7 @@ from core.database.db import DatabaseManager
 from core.engine.device_manager import DeviceManager
 
 router = APIRouter(tags=["devices"], dependencies=[Depends(get_current_user)])
+
 
 
 def get_db(request: Request) -> DatabaseManager:
@@ -120,12 +120,19 @@ async def test_device_connectivity(
 
     config_json = device.get("config_json", {})
     config_json["last_latency_ms"] = result.latency_ms
+    if result.error_message:
+        config_json["last_test_error"] = result.error_message
+    else:
+        config_json.pop("last_test_error", None)
     await crud.update_device(manager.db, device_id, {"config_json": config_json})
+
+    updated_device = await crud.get_device(manager.db, device_id)
+    status_value = updated_device.get("status", DeviceStatus.UNKNOWN.value) if updated_device else DeviceStatus.UNKNOWN.value
 
     return {
         "device_id": device_id,
         "success": result.success,
-        "status": result_status.value,
+        "status": status_value,
         "latency_ms": result.latency_ms,
         "error": result.error_message,
     }
@@ -150,6 +157,7 @@ async def test_all_devices(
             offline += 1
 
     return {"total": len(devices), "online": online, "offline": offline, "results": results}
+
 
 
 @router.get("/api/devices/{device_id}/interfaces")
@@ -193,7 +201,6 @@ async def get_device_vlans(device_id: int, manager: DeviceManager = Depends(get_
     """Return VLAN info from last poll"""
     data = await manager.get_device_data(device_id)
     if not data or "vlans" not in data:
-        # Check if system_info has some hints or if it's just missing
         return []
     return data.get("vlans", [])
 
@@ -214,8 +221,6 @@ async def refresh_device(
     _: Dict[str, Any] = Depends(require_editor_or_above),
 ):
     """Force a full data refresh (poll + all tables)"""
-    # This might be slow, so we could theoretically run it in background
-    # but for manual refresh, user usually expects it to complete.
     await manager.refresh_device_data(device_id)
     return {"message": "Data refresh triggered", "device_id": device_id}
 

@@ -6,7 +6,7 @@ Main engine for managing network devices, credentials, and polling operations.
 import asyncio
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from connectors.base import ConnectionTestResult, get_connector
 from core.database import crud
@@ -41,6 +41,13 @@ class DeviceManager:
             self._connectors: Dict[int, Any] = {}  # Cache of connector instances
             self._cache: Dict[int, Dict[str, Any]] = {}  # Cache of latest poll data
             self._semaphore = asyncio.Semaphore(5)  # Default max concurrent polls
+            self._polling_task: Optional[asyncio.Task] = None
+            self._polling_running = False
+            self._polling_interval_seconds = 300
+            self._polling_last_run: Optional[str] = None
+            self._polling_next_run: Optional[str] = None
+            self._polling_cycle_summary: Dict[str, Any] = {}
+            self._agent_offline_timeout_seconds = 120
 
     def initialize(self, db: DatabaseManager, vault: CredentialVault):
         if getattr(self, "_initialized", False):
@@ -96,7 +103,8 @@ class DeviceManager:
         # Based on credential_vault.py, it uses name.
 
         # We'll try to find the credential name from the device config or name
-        cred_name = device_cfg.get("config_json", {}).get("credential_name")
+        config_json = device_cfg.get("config_json", {}) or {}
+        cred_name = config_json.get("credential_name")
         if not cred_name:
             # Fallback: check if there's a credential_id in the device record
             cred_id = device_cfg.get("credential_id")
@@ -116,11 +124,22 @@ class DeviceManager:
                 return None
 
         try:
+            merged_credentials = dict(credentials)
+            for key, value in config_json.items():
+                if key == "credential_name":
+                    continue
+                merged_credentials[key] = value
+
+            if device_cfg.get("port"):
+                merged_credentials["port"] = device_cfg.get("port")
+            if not merged_credentials.get("device_type") and device_cfg.get("type"):
+                merged_credentials["device_type"] = device_cfg.get("type")
+
             # Instantiate connector
             connector = connector_cls(
                 device_id=str(device_id),
                 device_ip=device_cfg.get("ip") or device_cfg.get("ip_address"),
-                credentials=credentials,
+                credentials=merged_credentials,
             )
             self._connectors[device_id] = connector
             return connector
@@ -199,6 +218,187 @@ class DeviceManager:
             await asyncio.gather(*tasks, return_exceptions=True)
             logger.info("All poll operations completed")
 
+    async def run_poll_cycle(self) -> Dict[str, Any]:
+        """Run one status polling cycle for all active devices and agents."""
+        started = datetime.now(timezone.utc)
+        await self.load_devices()
+
+        active_ids: List[int] = []
+        for device_id, device in self._devices.items():
+            is_active = device.get("is_active", 1)
+            if bool(is_active):
+                active_ids.append(device_id)
+
+        logger.info("Scheduled polling cycle started for %s active devices", len(active_ids))
+
+        summary: Dict[str, Any] = {
+            "started_at": started.isoformat(),
+            "total_devices": len(active_ids),
+            "online": 0,
+            "offline": 0,
+            "warning": 0,
+            "failed": 0,
+            "results": [],
+        }
+
+        async def _poll_single(device_id: int):
+            device = self._devices.get(device_id, {})
+            device_name = device.get("name", f"device-{device_id}")
+            try:
+                result = await self.test_device(device_id)
+                refreshed = await crud.get_device(self.db, device_id)
+                status_value = (
+                    refreshed.get("status", DeviceStatus.UNKNOWN.value) if refreshed else DeviceStatus.UNKNOWN.value
+                )
+
+                if status_value == DeviceStatus.ONLINE.value:
+                    summary["online"] += 1
+                elif status_value == DeviceStatus.WARNING.value:
+                    summary["warning"] += 1
+                else:
+                    summary["offline"] += 1
+
+                entry = {
+                    "device_id": device_id,
+                    "name": device_name,
+                    "status": status_value,
+                    "latency_ms": result.latency_ms,
+                    "error": result.error_message,
+                }
+                summary["results"].append(entry)
+                logger.info(
+                    "Poll result device=%s ip=%s status=%s latency_ms=%s error=%s",
+                    device_name,
+                    device.get("ip") or device.get("ip_address"),
+                    status_value,
+                    result.latency_ms,
+                    result.error_message,
+                )
+            except Exception as exc:
+                summary["failed"] += 1
+                summary["offline"] += 1
+                summary["results"].append(
+                    {
+                        "device_id": device_id,
+                        "name": device_name,
+                        "status": DeviceStatus.OFFLINE.value,
+                        "latency_ms": 0,
+                        "error": str(exc),
+                    }
+                )
+                logger.error("Scheduled poll failed for %s: %s", device_name, exc)
+
+        tasks = [_poll_single(device_id) for device_id in active_ids]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=False)
+
+        agents_marked_offline = await self._check_agent_offline_status()
+        summary["agents_marked_offline"] = agents_marked_offline
+        summary["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+        self._polling_last_run = summary["completed_at"]
+        self._polling_cycle_summary = summary
+
+        logger.info(
+            "Scheduled polling cycle completed total=%s online=%s warning=%s offline=%s failed=%s agents_offline=%s",
+            summary["total_devices"],
+            summary["online"],
+            summary["warning"],
+            summary["offline"],
+            summary["failed"],
+            summary["agents_marked_offline"],
+        )
+
+        return summary
+
+    async def _check_agent_offline_status(self) -> int:
+        """Mark agents offline when heartbeat is stale."""
+        now = datetime.now(timezone.utc)
+        cutoff = now.timestamp() - self._agent_offline_timeout_seconds
+        cutoff_dt = datetime.fromtimestamp(cutoff, tz=timezone.utc).replace(tzinfo=None)
+
+        stale_agents = await self.db.fetch_all(
+            "SELECT id, name, last_heartbeat, status FROM agents WHERE last_heartbeat IS NULL OR last_heartbeat < ?",
+            (cutoff_dt,),
+        )
+
+        updated_count = 0
+        for agent in stale_agents:
+            if str(agent.get("status") or "").lower() == "offline":
+                continue
+            await self.db.execute("UPDATE agents SET status = 'offline' WHERE id = ?", (agent["id"],))
+            updated_count += 1
+            logger.warning(
+                "Agent marked offline due to stale heartbeat: id=%s name=%s last_heartbeat=%s",
+                agent.get("id"),
+                agent.get("name"),
+                agent.get("last_heartbeat"),
+            )
+
+        return updated_count
+
+    async def start_scheduled_polling(
+        self,
+        interval_minutes: int = 5,
+        agent_offline_seconds: int = 120,
+        device_concurrency: int = 10,
+    ):
+        """Start periodic async polling task."""
+        if self._polling_task and not self._polling_task.done():
+            logger.info("Scheduled polling already running")
+            return
+
+        self._polling_interval_seconds = max(60, int(interval_minutes) * 60)
+        self._agent_offline_timeout_seconds = max(30, int(agent_offline_seconds))
+        self._semaphore = asyncio.Semaphore(max(1, int(device_concurrency)))
+        self._polling_running = True
+
+        async def _loop():
+            logger.info(
+                "Starting scheduled polling loop interval=%ss agent_offline_timeout=%ss",
+                self._polling_interval_seconds,
+                self._agent_offline_timeout_seconds,
+            )
+            while self._polling_running:
+                cycle_start = datetime.now(timezone.utc)
+                next_ts = cycle_start.timestamp() + self._polling_interval_seconds
+                self._polling_next_run = datetime.fromtimestamp(next_ts, tz=timezone.utc).isoformat()
+
+                try:
+                    await self.run_poll_cycle()
+                except Exception as exc:
+                    logger.error("Scheduled polling cycle failed: %s", exc, exc_info=True)
+
+                try:
+                    await asyncio.sleep(self._polling_interval_seconds)
+                except asyncio.CancelledError:
+                    break
+
+            logger.info("Scheduled polling loop stopped")
+
+        self._polling_task = asyncio.create_task(_loop(), name="device-polling-loop")
+
+    async def stop_scheduled_polling(self):
+        """Stop periodic polling task."""
+        self._polling_running = False
+        if self._polling_task and not self._polling_task.done():
+            self._polling_task.cancel()
+            try:
+                await self._polling_task
+            except asyncio.CancelledError:
+                pass
+        self._polling_task = None
+
+    def get_polling_status(self) -> Dict[str, Any]:
+        """Return current polling loop status and latest summary."""
+        return {
+            "running": bool(self._polling_task and not self._polling_task.done() and self._polling_running),
+            "interval_seconds": self._polling_interval_seconds,
+            "last_run": self._polling_last_run,
+            "next_run": self._polling_next_run,
+            "results_summary": self._polling_cycle_summary,
+        }
+
     async def test_device(self, device_id: int) -> ConnectionTestResult:
         """Run test_connection(), persist status, and return result."""
         connector = await self.get_connector(device_id)
@@ -209,15 +409,39 @@ class DeviceManager:
 
         try:
             result = await connector.test_connection()
-            status = DeviceStatus.OFFLINE
-            if result.success:
-                status = DeviceStatus.WARNING if (result.latency_ms or 0) > 2000 else DeviceStatus.ONLINE
+            status = self._derive_status_from_test_result(result)
 
             await self._update_device_status(device_id, status)
+
+            # Ensure update is persisted and cache has latest value.
+            updated = await crud.get_device(self.db, device_id)
+            if updated:
+                self._devices[device_id] = updated
+
             return result
         except Exception as e:
             await self._update_device_status(device_id, DeviceStatus.OFFLINE)
             return ConnectionTestResult(success=False, latency_ms=0, error_message=str(e))
+
+    @staticmethod
+    def _derive_status_from_test_result(result: ConnectionTestResult) -> DeviceStatus:
+        if result.success:
+            return DeviceStatus.ONLINE
+
+        error_text = (result.error_message or "").lower()
+        auth_markers = [
+            "authentication",
+            "auth failed",
+            "permission denied",
+            "invalid password",
+            "password",
+            "credential",
+        ]
+
+        if any(marker in error_text for marker in auth_markers):
+            return DeviceStatus.WARNING
+
+        return DeviceStatus.OFFLINE
 
     async def get_device_status(self, device_id: int) -> str:
         """Return cached status without polling."""

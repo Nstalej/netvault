@@ -24,6 +24,37 @@
     #full-devices-table tr:last-child {
         border-bottom: none;
     }
+
+    .discover-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .discover-result-wrap {
+        max-height: 340px;
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+    }
+
+    .discover-result-wrap table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .discover-result-wrap th,
+    .discover-result-wrap td {
+        padding: 0.55rem 0.65rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.82rem;
+        text-align: left;
+    }
+
+    .discover-result-wrap tr:last-child td {
+        border-bottom: none;
+    }
 </style>
 <div style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
     <div class="search-box" style="flex: 1; max-width: 500px; margin-right: 1rem;">
@@ -32,6 +63,9 @@
     <div>
         <button class="btn btn-outline" onclick="testAllDevices()" style="margin-right: 0.5rem;">
             <i class="fas fa-network-wired"></i> Test All Devices
+        </button>
+        <button class="btn btn-outline" onclick="openDiscoverModal()" style="margin-right: 0.5rem;">
+            <i class="fas fa-radar"></i> Discover Network
         </button>
         <button class="btn btn-primary" onclick="showAddModal()">
             <i class="fas fa-plus"></i> Add New Device
@@ -111,10 +145,70 @@
         </form>
     </div>
 </div>
+
+<div id="discover-modal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="width: 100%; max-width: 980px;">
+        <h3 style="margin-top: 0;">Discover Devices</h3>
+        <div class="discover-grid">
+            <div>
+                <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.25rem;">Subnets (one per line)</label>
+                <textarea id="discover-subnets" style="width: 100%; min-height: 86px;">192.168.2.0/24
+192.168.3.0/24</textarea>
+            </div>
+            <div>
+                <label style="display:block; font-size:0.8rem; color:var(--text-muted); margin-bottom:0.25rem;">Methods</label>
+                <div style="display:flex; gap:0.8rem; flex-wrap:wrap;">
+                    <label><input type="checkbox" class="discover-method" value="ping" checked> ping</label>
+                    <label><input type="checkbox" class="discover-method" value="ssh" checked> ssh</label>
+                    <label><input type="checkbox" class="discover-method" value="snmp" checked> snmp</label>
+                </div>
+                <div style="margin-top: 0.75rem; color: var(--text-muted); font-size: 0.8rem;">
+                    Discovery runs as a background job. This modal auto-refreshes results.
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:0.6rem; margin-bottom:0.8rem; align-items:center;">
+            <button class="btn btn-primary" onclick="startDiscovery()"><i class="fas fa-play"></i> Start Discovery</button>
+            <button class="btn btn-outline" onclick="refreshDiscoveryJob()"><i class="fas fa-sync-alt"></i> Refresh Results</button>
+            <span id="discover-job-status" style="font-size: 0.85rem; color: var(--text-muted);">No job running</span>
+        </div>
+
+        <div class="discover-result-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Select</th>
+                        <th>IP</th>
+                        <th>Hostname</th>
+                        <th>Type</th>
+                        <th>Open Ports</th>
+                        <th>Registered</th>
+                    </tr>
+                </thead>
+                <tbody id="discover-results-body">
+                    <tr>
+                        <td colspan="6" style="text-align:center; color:var(--text-muted);">No results yet</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display:flex; gap:0.8rem; margin-top:1rem; justify-content:flex-end;">
+            <button class="btn btn-outline" onclick="closeDiscoverModal()">Close</button>
+            <button class="btn btn-primary" onclick="addSelectedDiscovered()"><i class="fas fa-plus"></i> Add Selected</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    let discoverJobId = null;
+    let discoverPollTimer = null;
+    let discoverLastResults = [];
+
     async function refreshPageData() {
         const devices = await fetchData('/api/devices/');
         const body = document.getElementById('devices-body');
@@ -165,6 +259,142 @@
 
     function closeModal() {
         document.getElementById('add-modal').style.display = 'none';
+    }
+
+    function openDiscoverModal() {
+        document.getElementById('discover-modal').style.display = 'flex';
+    }
+
+    function closeDiscoverModal() {
+        document.getElementById('discover-modal').style.display = 'none';
+        if (discoverPollTimer) {
+            clearInterval(discoverPollTimer);
+            discoverPollTimer = null;
+        }
+    }
+
+    function getDiscoveryPayload() {
+        const subnetsRaw = document.getElementById('discover-subnets').value || '';
+        const subnets = subnetsRaw.split('\n').map(s => s.trim()).filter(Boolean);
+        const methods = Array.from(document.querySelectorAll('.discover-method:checked')).map(el => el.value);
+        return { subnets, methods };
+    }
+
+    function renderDiscoveryResults(results) {
+        const tbody = document.getElementById('discover-results-body');
+        discoverLastResults = results || [];
+
+        if (!results || results.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">No discovered devices yet</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = results.map((item, idx) => {
+            const alreadyRegistered = !!item.already_registered;
+            return `
+                <tr>
+                    <td>
+                        <input type="checkbox" class="discover-select" data-index="${idx}" ${alreadyRegistered ? 'disabled' : ''}>
+                    </td>
+                    <td><code>${item.ip || '-'}</code></td>
+                    <td>${item.hostname || '-'}</td>
+                    <td>${item.type || 'unknown'}</td>
+                    <td>${(item.open_ports || []).join(', ') || '-'}</td>
+                    <td>${alreadyRegistered ? '<span style="color:var(--warning);">Yes</span>' : 'No'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function setDiscoveryStatus(text) {
+        document.getElementById('discover-job-status').textContent = text;
+    }
+
+    async function startDiscovery() {
+        const payload = getDiscoveryPayload();
+        if (!payload.subnets.length) {
+            alert('Please provide at least one subnet.');
+            return;
+        }
+
+        const res = await fetchData('/api/network/discover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res || !res.job_id) {
+            alert('Failed to start discovery job.');
+            return;
+        }
+
+        discoverJobId = res.job_id;
+        setDiscoveryStatus(`Running job ${discoverJobId}...`);
+        renderDiscoveryResults([]);
+
+        if (discoverPollTimer) {
+            clearInterval(discoverPollTimer);
+        }
+
+        discoverPollTimer = setInterval(refreshDiscoveryJob, 2000);
+        await refreshDiscoveryJob();
+    }
+
+    async function refreshDiscoveryJob() {
+        if (!discoverJobId) return;
+
+        const job = await fetchData(`/api/network/discover/${discoverJobId}`);
+        if (!job) {
+            setDiscoveryStatus('Discovery job status unavailable');
+            return;
+        }
+
+        const p = job.progress || {};
+        setDiscoveryStatus(`Status: ${job.status} | ${p.scanned_hosts || 0}/${p.total_hosts || 0} scanned | ${p.responding_hosts || 0} responsive`);
+        renderDiscoveryResults(job.results || []);
+
+        if (job.status === 'completed' || job.status === 'failed') {
+            if (discoverPollTimer) {
+                clearInterval(discoverPollTimer);
+                discoverPollTimer = null;
+            }
+        }
+    }
+
+    async function addSelectedDiscovered() {
+        const selected = Array.from(document.querySelectorAll('.discover-select:checked')).map(cb => {
+            const idx = Number(cb.getAttribute('data-index'));
+            return discoverLastResults[idx];
+        }).filter(Boolean);
+
+        if (!selected.length) {
+            alert('No discovered devices selected.');
+            return;
+        }
+
+        let created = 0;
+        for (const item of selected) {
+            const type = (item.type || 'unknown').toLowerCase();
+            const connectorType = type === 'switch' ? 'snmp' : 'ssh';
+            const payload = {
+                name: item.hostname || `Discovered ${item.ip}`,
+                ip: item.ip,
+                type: item.type || 'unknown',
+                connector_type: connectorType,
+                config_json: {}
+            };
+
+            const res = await fetchData('/api/devices/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res && res.id) created += 1;
+        }
+
+        alert(`Created ${created} device(s).`);
+        await refreshData();
+        await refreshDiscoveryJob();
     }
 
     async function saveDevice(e) {

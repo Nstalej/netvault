@@ -61,7 +61,9 @@ class LoggingConfig(BaseModel):
 
 
 class PollingConfig(BaseModel):
-    interval_minutes: int = 5
+    interval_minutes: int = Field(default=5, alias="POLLING_INTERVAL_MINUTES")
+    device_concurrency: int = Field(default=10, alias="POLLING_DEVICE_CONCURRENCY")
+    agent_offline_seconds: int = Field(default=120, alias="AGENT_OFFLINE_SECONDS")
 
 
 class AuditConfig(BaseModel):

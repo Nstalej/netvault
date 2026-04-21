@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -19,6 +19,7 @@ from core.database.db import DatabaseManager
 from core.engine.credential_vault import CredentialVault
 from core.engine.device_manager import DeviceManager
 from core.engine.audit_engine import AuditEngine
+from core.engine.network_discovery import NetworkDiscoveryEngine
 from core.engine.scheduler import get_scheduler
 from core.api.routes import devices, agents, audit, health, credentials, dashboard, network, auth
 
@@ -65,6 +66,9 @@ async def lifespan(app: FastAPI):
         device_manager = get_device_manager(db, vault)
         app.state.device_manager = device_manager
 
+        # Initialize Discovery Engine
+        app.state.network_discovery = NetworkDiscoveryEngine(db)
+        
         # Initialize Audit Engine
         audit_engine = AuditEngine(db, device_manager)
         app.state.audit_engine = audit_engine
@@ -74,6 +78,13 @@ async def lifespan(app: FastAPI):
         await scheduler.start()
         app.state.scheduler = scheduler
 
+        # Start periodic polling loop
+        await device_manager.start_scheduled_polling(
+            interval_minutes=config.polling.interval_minutes,
+            agent_offline_seconds=config.polling.agent_offline_seconds,
+            device_concurrency=config.polling.device_concurrency,
+        )
+        
         logger.info("Core components initialized")
 
         # Start MCP Server if enabled
@@ -94,6 +105,9 @@ async def lifespan(app: FastAPI):
     # Shutdown
     try:
         if hasattr(app.state, "scheduler"):
+        if hasattr(app.state, 'device_manager'):
+            await app.state.device_manager.stop_scheduled_polling()
+        if hasattr(app.state, 'scheduler'):
             await app.state.scheduler.stop()
         if hasattr(app.state, "db"):
             await app.state.db.disconnect()
@@ -140,4 +154,25 @@ def create_app(config: Settings) -> FastAPI:
     app.include_router(credentials.router)
     app.include_router(network.router)
 
+    existing_device_detail = any(
+        getattr(route, "path", None) == "/devices/{device_id}" and "GET" in getattr(route, "methods", set())
+        for route in app.routes
+    )
+
+    if not existing_device_detail:
+        @app.get("/devices/{device_id}", response_class=HTMLResponse, include_in_schema=False)
+        async def get_device_detail_page(request: Request, device_id: int):
+            """Serve device detail page by id."""
+            config = request.app.state.config
+            return request.app.state.templates.TemplateResponse(
+                "device_detail.html",
+                {
+                    "request": request,
+                    "active_page": "devices",
+                    "device_id": device_id,
+                    "version": config.app.version,
+                    "environment": config.app.environment,
+                },
+            )
+    
     return app
